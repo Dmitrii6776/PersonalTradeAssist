@@ -1,115 +1,51 @@
-openapi: 3.0.0
+openapi: 3.1.0
 info:
   title: Ultimate Bybit Spot Trading Assistant API
   version: 1.0.0
-  description: |
-    Provides real-time crypto spot market data, sentiment analysis, volatility classification, 
-    bid/ask spread analysis, multi-timeframe confirmation (15m, 1h, 4h) using EMA20, and Reddit-based social trend signals.
+  description: >
+    Real-time crypto market and sentiment data for Bybit Spot. Includes volatility classification, Reddit signals,
+    bid/ask spread tracking, and multi-timeframe EMA20 confirmation.
+
 servers:
-  - url: https://your-railway-app.up.railway.app
+  - url: https://personaltradeassist-production.up.railway.app
+
 paths:
   /sentiment:
     get:
-      summary: Get full sentiment, market volatility, and social analysis
+      operationId: getSentiment
+      summary: Get trending coin signals with sentiment, volatility, and technical alignment
       responses:
         '200':
-          description: Successful response with trending coins data
+          description: Full coin sentiment and analysis
           content:
             application/json:
               schema:
                 type: object
-                properties:
-                  timestamp:
-                    type: string
-                    format: date-time
-                  fear_greed:
-                    type: object
-                    properties:
-                      score:
-                        type: integer
-                      classification:
-                        type: string
-                  trending_coins:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        symbol:
-                          type: string
-                        reddit_mentions:
-                          type: integer
-                        signal:
-                          type: string
-                          enum: [BUY, CAUTION]
-                        volatility_percent:
-                          type: number
-                        volatility_zone:
-                          type: string
-                        strategy_description:
-                          type: string
-                        bid_ask_spread_percent:
-                          type: number
-                        top_5_bids:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              price:
-                                type: number
-                              size:
-                                type: number
-                        top_5_asks:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              price:
-                                type: number
-                              size:
-                                type: number
-                        multi_timeframe_confirmation:
-                          type: boolean
-                        timeframes_status:
-                          type: object
-                          additionalProperties:
-                            type: object
-                            properties:
-                              price:
-                                type: number
-                              ema20:
-                                type: number
-                              trend:
-                                type: string
-                                enum: [bullish, bearish]
+
   /market:
     get:
+      operationId: getMarket
       summary: Get live Bybit Spot Market prices
       responses:
         '200':
-          description: Successful response with spot market prices
+          description: Live market price snapshot
           content:
             application/json:
               schema:
                 type: object
-                additionalProperties:
-                  type: object
-                  properties:
-                    last:
-                      type: number
-                    high:
-                      type: number
-                    low:
-                      type: number
+
   /legal:
     get:
-      summary: Legal Disclaimer page
+      operationId: getLegal
+      summary: Legal disclaimer and usage policy (HTML)
       responses:
         '200':
-          description: Legal page (HTML)
+          description: Legal HTML page
 
   /health:
     get:
-      summary: Healthcheck endpoint
+      operationId: getHealth
+      summary: API healthcheck (for monitoring)
       responses:
         '200':
-          description: API Status Ok
+          description: Returns status: ok
