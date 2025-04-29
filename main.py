@@ -170,6 +170,8 @@ def update_data():
         trending_coins = fetch_trending_coins()
         fear_greed_score, fear_greed_class = fetch_fear_greed_index()
         reddit_mentions = fetch_reddit_mentions(trending_coins)
+        coingecko_markets = fetch_coingecko_market_data()
+        coingecko_categories = fetch_coingecko_categories()
 
         sentiment_data = {
             "timestamp": datetime.now().isoformat(),
