@@ -10,6 +10,7 @@ from flask import Flask, jsonify, render_template
 from apscheduler.schedulers.background import BackgroundScheduler
 from modules.coingecko_api import fetch_coingecko_market_data, fetch_coingecko_categories
 from modules.cryptopanic_api import fetch_cryptopanic_news
+from modules.santiment_api import fetch_social_metrics
 
 app = Flask(__name__)
 
@@ -221,6 +222,25 @@ def update_data():
                     elif news.get('votes', {}).get('negative', 0) > news.get('votes', {}).get('positive', 0):
                         coin_news_sentiment = "negative"
                         break
+
+            social_metrics = fetch_social_metrics(coin)
+
+            social_dominance_spike = False
+            active_address_spike = False
+
+            if social_metrics:
+                dominance_points = social_metrics.get('socialDominance', [])
+                address_points = social_metrics.get('activeAddresses', [])
+
+                if len(dominance_points) >= 2:
+                    delta_dominance = dominance_points[-1]['dominance'] - dominance_points[-2]['dominance']
+                    if delta_dominance > 0.5:  # >0.5% increase
+                        social_dominance_spike = True
+
+                if len(address_points) >= 2:
+                    delta_addresses = address_points[-1]['activeAddresses'] - address_points[-2]['activeAddresses']
+                    if delta_addresses > 100:  # 100+ active wallets surge
+                        active_address_spike = True
 
             sentiment_data["trending_coins"].append({
                 "symbol": coin,
