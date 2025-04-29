@@ -11,6 +11,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from modules.coingecko_api import fetch_coingecko_market_data, fetch_coingecko_categories
 from modules.cryptopanic_api import fetch_cryptopanic_news
 from modules.santiment_api import fetch_social_metrics
+from modules.whale_alert_api import fetch_whale_transactions
 
 app = Flask(__name__)
 
@@ -175,6 +176,7 @@ def update_data():
         coingecko_markets = fetch_coingecko_market_data()
         coingecko_categories = fetch_coingecko_categories()
         cryptopanic_news = fetch_cryptopanic_news()
+        whale_txns = fetch_whale_transactions()
         sector_lookup = {}
         for item in coingecko_markets:
             symbol = item.get('symbol', '').upper()
@@ -192,6 +194,10 @@ def update_data():
 
         for coin in trending_coins:
             market = market_data.get(coin + "USDT", None)
+            coin_whale_alert = any(
+            coin.lower() in tx.get("symbol", "").lower()
+            for tx in whale_txns
+            )
             if not market:
                 continue
 
@@ -263,6 +269,7 @@ def update_data():
                 "news_sentiment": coin_news_sentiment,  # 🆕
                 "social_dominance_spike": social_dominance_spike,  # 🆕
                 "active_address_spike": active_address_spike  # 🆕
+                "whale_alert": coin_whale_alert
             })
     except Exception as e:
         print(f"Error during update: {e}")
