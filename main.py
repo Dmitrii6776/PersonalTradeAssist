@@ -208,6 +208,19 @@ def update_data():
                 spread_percent = None
 
             mtf_confirm, tf_status = analyze_timeframes(coin, last_price)
+            sector = sector_lookup.get(coin, "Unknown")  # 🆕 sector
+
+    # 🆕 INSERT News Sentiment Scanner Here
+            coin_news_sentiment = "neutral"
+            for news in cryptopanic_news:
+                title = news.get('title', '').lower()
+                if coin.lower() in title:
+                    if news.get('votes', {}).get('positive', 0) > news.get('votes', {}).get('negative', 0):
+                        coin_news_sentiment = "positive"
+                        break
+                    elif news.get('votes', {}).get('negative', 0) > news.get('votes', {}).get('positive', 0):
+                        coin_news_sentiment = "negative"
+                        break
 
             sentiment_data["trending_coins"].append({
                 "symbol": coin,
