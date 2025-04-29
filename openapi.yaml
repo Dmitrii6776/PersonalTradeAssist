@@ -1,20 +1,19 @@
-openapi: 3.1.0
+openapi: 3.0.0
 info:
   title: Ultimate Bybit Spot Trading Assistant API
   version: 1.0.0
   description: |
-    Provides real-time crypto market data, sentiment analysis, volatility classification, bid/ask spread analysis, and Reddit-based social trend signals. 
-    Built for short-term trading strategy optimization on Bybit Spot Market.
+    Provides real-time crypto spot market data, sentiment analysis, volatility classification, 
+    bid/ask spread analysis, multi-timeframe confirmation (15m, 1h, 4h) using EMA20, and Reddit-based social trend signals.
 servers:
   - url: https://your-railway-app.up.railway.app
 paths:
   /sentiment:
     get:
       summary: Get full sentiment, market volatility, and social analysis
-      description: Returns trending coins, their market stats, volatility classification, sentiment signals, Reddit mentions, top 5 bids/asks, and spread.
       responses:
-        "200":
-          description: Successful response with market and sentiment analysis
+        '200':
+          description: Successful response with trending coins data
           content:
             application/json:
               schema:
@@ -44,14 +43,12 @@ paths:
                           enum: [BUY, CAUTION]
                         volatility_percent:
                           type: number
-                          format: float
                         volatility_zone:
                           type: string
                         strategy_description:
                           type: string
                         bid_ask_spread_percent:
                           type: number
-                          format: float
                         top_5_bids:
                           type: array
                           items:
@@ -59,10 +56,8 @@ paths:
                             properties:
                               price:
                                 type: number
-                                format: float
                               size:
                                 type: number
-                                format: float
                         top_5_asks:
                           type: array
                           items:
@@ -70,18 +65,28 @@ paths:
                             properties:
                               price:
                                 type: number
-                                format: float
                               size:
                                 type: number
-                                format: float
-
+                        multi_timeframe_confirmation:
+                          type: boolean
+                        timeframes_status:
+                          type: object
+                          additionalProperties:
+                            type: object
+                            properties:
+                              price:
+                                type: number
+                              ema20:
+                                type: number
+                              trend:
+                                type: string
+                                enum: [bullish, bearish]
   /market:
     get:
       summary: Get live Bybit Spot Market prices
-      description: Returns spot prices including last traded price, 24h high, and 24h low for all symbols.
       responses:
-        "200":
-          description: Successful response with market data
+        '200':
+          description: Successful response with spot market prices
           content:
             application/json:
               schema:
@@ -95,3 +100,16 @@ paths:
                       type: number
                     low:
                       type: number
+  /legal:
+    get:
+      summary: Legal Disclaimer page
+      responses:
+        '200':
+          description: Legal page (HTML)
+
+  /health:
+    get:
+      summary: Healthcheck endpoint
+      responses:
+        '200':
+          description: API Status Ok
