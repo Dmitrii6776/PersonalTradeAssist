@@ -253,7 +253,11 @@ def update_data():
                 "top_5_bids": bids,
                 "top_5_asks": asks,
                 "multi_timeframe_confirmation": mtf_confirm,
-                "timeframes_status": tf_status
+                "timeframes_status": tf_status,
+                "sector": sector,  # 🆕
+                "news_sentiment": coin_news_sentiment,  # 🆕
+                "social_dominance_spike": social_dominance_spike,  # 🆕
+                "active_address_spike": active_address_spike  # 🆕
             })
     except Exception as e:
         print(f"Error during update: {e}")
