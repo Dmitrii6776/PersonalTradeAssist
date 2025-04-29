@@ -268,7 +268,7 @@ def update_data():
                 "sector": sector,  # 🆕
                 "news_sentiment": coin_news_sentiment,  # 🆕
                 "social_dominance_spike": social_dominance_spike,  # 🆕
-                "active_address_spike": active_address_spike  # 🆕
+                "active_address_spike": active_address_spike,  # 🆕
                 "whale_alert": coin_whale_alert
             })
     except Exception as e:
