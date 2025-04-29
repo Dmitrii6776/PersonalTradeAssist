@@ -175,6 +175,11 @@ def update_data():
         coingecko_markets = fetch_coingecko_market_data()
         coingecko_categories = fetch_coingecko_categories()
         cryptopanic_news = fetch_cryptopanic_news()
+        sector_lookup = {}
+        for item in coingecko_markets:
+            symbol = item.get('symbol', '').upper()
+            category = item.get('category', 'Unknown')
+            sector_lookup[symbol] = category
 
         sentiment_data = {
             "timestamp": datetime.now().isoformat(),
