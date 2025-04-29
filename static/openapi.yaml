@@ -1,10 +1,10 @@
 openapi: 3.1.0
 info:
   title: Ultimate Bybit Spot Trading Assistant API
-  version: 1.0.0
+  version: "1.0"
   description: >
-    Real-time crypto market and sentiment data for Bybit Spot. Includes volatility classification, Reddit signals,
-    bid/ask spread tracking, and multi-timeframe EMA20 confirmation.
+    Real-time crypto spot market, sentiment, volatility zones, spread analysis, 
+    trending social dominance, and multi-timeframe EMA confirmation signals.
 
 servers:
   - url: https://personaltradeassist-production.up.railway.app
@@ -13,22 +13,94 @@ paths:
   /sentiment:
     get:
       operationId: getSentiment
-      summary: Get trending coin signals with sentiment, volatility, and technical alignment
+      summary: Get trending coins with sentiment, volatility, and full technical analysis
       responses:
-        '200':
-          description: Full coin sentiment and analysis
+        "200":
+          description: Successful response
           content:
             application/json:
               schema:
                 type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time
+                  fear_greed:
+                    type: object
+                    properties:
+                      score:
+                        type: integer
+                      classification:
+                        type: string
+                  trending_coins:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        symbol:
+                          type: string
+                        reddit_mentions:
+                          type: integer
+                        signal:
+                          type: string
+                          enum: [BUY, CAUTION]
+                        volatility_percent:
+                          type: number
+                        volatility_zone:
+                          type: string
+                        strategy_description:
+                          type: string
+                        bid_ask_spread_percent:
+                          type: number
+                        top_5_bids:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              price:
+                                type: number
+                              size:
+                                type: number
+                        top_5_asks:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              price:
+                                type: number
+                              size:
+                                type: number
+                        multi_timeframe_confirmation:
+                          type: boolean
+                        timeframes_status:
+                          type: object
+                          additionalProperties:
+                            type: object
+                            properties:
+                              price:
+                                type: number
+                              ema20:
+                                type: number
+                              trend:
+                                type: string
+                                enum: [bullish, bearish]
+                        sector:
+                          type: string
+                        news_sentiment:
+                          type: string
+                          enum: [positive, neutral, negative]
+                        social_dominance_spike:
+                          type: boolean
+                        active_address_spike:
+                          type: boolean
 
   /market:
     get:
       operationId: getMarket
       summary: Get live Bybit Spot Market prices
       responses:
-        '200':
-          description: Live market price snapshot
+        "200":
+          description: Successful response
           content:
             application/json:
               schema:
@@ -37,15 +109,23 @@ paths:
   /legal:
     get:
       operationId: getLegal
-      summary: Legal disclaimer and usage policy (HTML)
+      summary: Legal disclaimer and policy
       responses:
-        '200':
-          description: Legal HTML page
+        "200":
+          description: HTML page
 
   /health:
     get:
       operationId: getHealth
-      summary: API healthcheck (for monitoring)
+      summary: Health check endpoint
       responses:
-        '200':
-          description: Returns status: ok
+        "200":
+          description: Returns API health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
