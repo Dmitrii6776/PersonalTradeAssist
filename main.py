@@ -9,6 +9,7 @@ from datetime import datetime
 from flask import Flask, jsonify, render_template
 from apscheduler.schedulers.background import BackgroundScheduler
 from modules.coingecko_api import fetch_coingecko_market_data, fetch_coingecko_categories
+from modules.cryptopanic_api import fetch_cryptopanic_news
 
 app = Flask(__name__)
 
@@ -172,6 +173,7 @@ def update_data():
         reddit_mentions = fetch_reddit_mentions(trending_coins)
         coingecko_markets = fetch_coingecko_market_data()
         coingecko_categories = fetch_coingecko_categories()
+        cryptopanic_news = fetch_cryptopanic_news()
 
         sentiment_data = {
             "timestamp": datetime.now().isoformat(),
