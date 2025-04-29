@@ -1,0 +1,97 @@
+openapi: 3.1.0
+info:
+  title: Ultimate Bybit Spot Trading Assistant API
+  version: 1.0.0
+  description: |
+    Provides real-time crypto market data, sentiment analysis, volatility classification, bid/ask spread analysis, and Reddit-based social trend signals. 
+    Built for short-term trading strategy optimization on Bybit Spot Market.
+servers:
+  - url: https://your-railway-app.up.railway.app
+paths:
+  /sentiment:
+    get:
+      summary: Get full sentiment, market volatility, and social analysis
+      description: Returns trending coins, their market stats, volatility classification, sentiment signals, Reddit mentions, top 5 bids/asks, and spread.
+      responses:
+        "200":
+          description: Successful response with market and sentiment analysis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time
+                  fear_greed:
+                    type: object
+                    properties:
+                      score:
+                        type: integer
+                      classification:
+                        type: string
+                  trending_coins:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        symbol:
+                          type: string
+                        reddit_mentions:
+                          type: integer
+                        signal:
+                          type: string
+                          enum: [BUY, CAUTION]
+                        volatility_percent:
+                          type: number
+                          format: float
+                        volatility_zone:
+                          type: string
+                        strategy_description:
+                          type: string
+                        bid_ask_spread_percent:
+                          type: number
+                          format: float
+                        top_5_bids:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              price:
+                                type: number
+                                format: float
+                              size:
+                                type: number
+                                format: float
+                        top_5_asks:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              price:
+                                type: number
+                                format: float
+                              size:
+                                type: number
+                                format: float
+
+  /market:
+    get:
+      summary: Get live Bybit Spot Market prices
+      description: Returns spot prices including last traded price, 24h high, and 24h low for all symbols.
+      responses:
+        "200":
+          description: Successful response with market data
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  properties:
+                    last:
+                      type: number
+                    high:
+                      type: number
+                    low:
+                      type: number
