@@ -8,6 +8,7 @@ import json
 from datetime import datetime
 from flask import Flask, jsonify, render_template
 from apscheduler.schedulers.background import BackgroundScheduler
+from modules.coingecko_api import fetch_coingecko_market_data, fetch_coingecko_categories
 
 app = Flask(__name__)
 
