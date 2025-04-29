@@ -241,6 +241,10 @@ def legal_page():
 def health_page():
     return jsonify({"status": "ok"})
 
+@app.route("/openapi.yaml", methods=["GET"])
+def serve_openapi_yaml():
+    return app.send_static_file("openapi.yaml")
+
 # --- Main Execution ---
 if __name__ == "__main__":
     update_data()
