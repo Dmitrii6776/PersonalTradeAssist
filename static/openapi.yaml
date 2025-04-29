@@ -105,19 +105,27 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  message:
+                    type: string
+                    example: Spot price data returned
 
   /legal:
     get:
       operationId: getLegal
-      summary: Legal disclaimer and policy
+      summary: Legal disclaimer and usage policy
       responses:
         "200":
-          description: HTML page
+          description: Legal HTML disclaimer
+          content:
+            text/html:
+              schema:
+                type: string
 
   /health:
     get:
       operationId: getHealth
-      summary: Health check endpoint
+      summary: API health check
       responses:
         "200":
           description: Returns API health status
