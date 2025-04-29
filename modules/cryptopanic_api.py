@@ -1,7 +1,7 @@
 import requests
 
 CRYPTO_PANIC_API_URL = "https://cryptopanic.com/api/v1/posts/"
-CRYPTO_PANIC_API_KEY = "YOUR_API_KEY_HERE"  # 🔥 Replace with your real API key 🔥
+CRYPTO_PANIC_API_KEY = "4df2734b13aae958a42beccf84983aa2e13d8317"  # 🔥 Replace with your real API key 🔥
 
 def fetch_cryptopanic_news():
     """Fetch top hot news from CryptoPanic."""
