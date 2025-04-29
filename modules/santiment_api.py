@@ -2,7 +2,7 @@ import requests
 import datetime
 
 SANTIMENT_API_URL = "https://api.santiment.net/graphql"
-SANTIMENT_API_KEY = "ms6qbmnwxnq6xtne_dx56zkd4toaz3xgz  # 🔥 Replace with your key
+SANTIMENT_API_KEY = "ms6qbmnwxnq6xtne_dx56zkd4toaz3xgz"  # 🔥 Replace with your key
 
 def fetch_social_metrics(symbol):
     """Fetch social dominance % change and active addresses % change for a given symbol."""
