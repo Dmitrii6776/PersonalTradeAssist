@@ -113,6 +113,12 @@ paths:
                           type: string
                         buy_window_note:
                           type: string
+                        scalp_entry:
+                          type: number
+                        scalp_tp:
+                          type: number
+                        scalp_sl:
+                          type: number
 
   /market:
     get:
