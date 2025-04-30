@@ -12,6 +12,7 @@ from modules.coingecko_api import fetch_coingecko_market_data, fetch_coingecko_c
 from modules.cryptopanic_api import fetch_cryptopanic_news
 from modules.santiment_api import fetch_social_metrics
 from modules.momentum_analysis import calculate_rsi, detect_volume_divergence, calculate_momentum_health
+from modules.breakout_scoring import calculate_breakout_score
 
 app = Flask(__name__)
 
@@ -207,6 +208,18 @@ def update_data():
 
             volatility = (high_24h - low_24h) / last_price * 100
             zone, strategy = determine_volatility_zone(volatility)
+
+             breakout_score = calculate_breakout_score(
+                rsi=rsi,
+                volume_rising=not volume_divergence,
+                whale_alert=coin_whale_alert,
+                news_sentiment=coin_news_sentiment,
+                spread_percent=spread_percent,
+                btc_inflow_spike=btc_inflow_spike,
+                orderbook_thin=(spread_percent is not None and spread_percent > 1.5),
+                momentum_health=momentum_health,
+            )
+
 
             mentions = reddit_mentions.get(coin, 0)
             signal = "BUY" if mentions >= 2 and fear_greed_score >= 50 else "CAUTION"
