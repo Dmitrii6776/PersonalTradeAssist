@@ -3,3 +3,7 @@ beautifulsoup4==4.12.2
 flask==2.3.2
 apscheduler==3.10.4
 numpy
+flask
+flask-cors
+requests
+numpy
