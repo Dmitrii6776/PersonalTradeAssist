@@ -159,7 +159,7 @@ def update_data():
             momentum_health = calculate_momentum_health(rsi, volume_divergence)
             if spread_percent > 1.5:
                 continue
-            if volatility_zone not in ["Very Low", "Low"]:
+            if zone not in ["Very Low", "Low"]:
                 continue
 
             social_metrics = fetch_social_metrics(coin)
@@ -237,7 +237,7 @@ def get_scalp_sentiment():
         if spread is None or spread > 0.3:
             continue
         volatility_zone = coin.get("volatility_zone", "")
-        if not volatility_zone.startswith("Very Low") and not volatility_zone.startswith("Low"):
+        if not zone.startswith("Very Low") and not zone.startswith("Low"):
             continue
         if not coin.get("multi_timeframe_confirmation"):
             continue
