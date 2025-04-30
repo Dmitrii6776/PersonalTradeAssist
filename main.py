@@ -278,5 +278,10 @@ def index():
     return "✅ PersonalTradeAssist API is running. Use /sentiment or /health."
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
+    try:
+        update_data()
+    except Exception as e:
+        print("❗ Failed during update_data():", e)
+
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
