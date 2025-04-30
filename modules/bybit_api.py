@@ -29,15 +29,12 @@ def fetch_orderbook(symbol):
         response = requests.get(url)
         if response.status_code == 200:
             data = response.json()
-            order_data = data["result"]["a"] + data["result"]["b"]  # ask + bid lists
-            bids = sorted(
-                [{"price": float(e[0]), "size": float(e[1])} for e in data["result"]["b"]],
-                key=lambda x: -x["price"]
-            )[:5]
-            asks = sorted(
-                [{"price": float(e[0]), "size": float(e[1])} for e in data["result"]["a"]],
-                key=lambda x: x["price"]
-            )[:5]
+            bids_raw = data["result"].get("b", [])
+            asks_raw = data["result"].get("a", [])
+
+            bids = [{"price": float(bid[0]), "size": float(bid[1])} for bid in bids_raw][:5]
+            asks = [{"price": float(ask[0]), "size": float(ask[1])} for ask in asks_raw][:5]
+
             return bids, asks
     except Exception as e:
         print("Error in fetch_orderbook:", e)
