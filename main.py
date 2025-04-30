@@ -218,7 +218,7 @@ def update_data():
             volume_divergence = detect_volume_divergence(volumes)
             momentum_health = calculate_momentum_health(rsi, volume_divergence)
 
-             breakout_score = calculate_breakout_score(
+            breakout_score = calculate_breakout_score(
                 rsi=rsi,
                 volume_rising=not volume_divergence,
                 whale_alert=coin_whale_alert,
