@@ -115,7 +115,7 @@ def update_data():
 
     try:
         market_data = fetch_market_data()
-        trending_coins = [s.replace("USDT", "") for s in market_data.keys() if s.endswith("USDT") and market_data[s]['high'] > 0 and market_data[s]['low'] > 0]
+        trending_coins = [s.replace("USDT", "") for s in market_data.keys() if s.endswith("USDT") and market_data[s].get("high", 0) > 0 and market_data[s].get("low", 0) > 0]
         fear_greed_score, fear_greed_class = fetch_fear_greed_index()
         reddit_mentions = fetch_reddit_mentions(trending_coins)
         coingecko_markets = fetch_coingecko_market_data()
@@ -135,8 +135,8 @@ def update_data():
                 continue
 
             last_price = market['last']
-            high_24h = market['high']
-            low_24h = market['low']
+            high_24h = market_data[s].get("high", 0)
+            low_24h = market_data[s].get("low", 0)
             volatility = (high_24h - low_24h) / last_price * 100
             zone, strategy = determine_volatility_zone(volatility)
 
