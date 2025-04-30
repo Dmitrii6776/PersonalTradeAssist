@@ -6,6 +6,10 @@ SANTIMENT_API_KEY = "ms6qbmnwxnq6xtne_dx56zkd4toaz3xgz"  # Replace with env or c
 
 def fetch_social_metrics(symbol):
     try:
+        base = globals().get("SANTIMENT_API_BASE", "https://api.santiment.net")
+        key = globals().get("SANTIMENT_API_KEY", "")
+        url = f"{base}/v1/assets/{symbol.lower()}/social_volume"
+        headers = {"Authorization": f"Bearer {key}"}
         url = f"{SANTIMENT_API_BASE}/v1/assets/{symbol.lower()}/social_volume"
         headers = {"Authorization": f"Bearer {SANTIMENT_API_KEY}"}
         response = requests.get(url, headers=headers, timeout=10)
