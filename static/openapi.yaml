@@ -3,8 +3,8 @@ info:
   title: Ultimate Bybit Spot Trading Assistant API
   version: "1.0"
   description: >
-    Real-time crypto spot market, sentiment, volatility zones, spread analysis, 
-    trending social dominance, and multi-timeframe EMA confirmation signals.
+    Real-time crypto spot market assistant using Bybit, CoinGecko, Reddit sentiment, order book spread analysis,
+    RSI momentum health scoring, whale signals, news sentiment, breakout strength, and volume divergence detection.
 
 servers:
   - url: https://personaltradeassist-production.up.railway.app
@@ -13,7 +13,7 @@ paths:
   /sentiment:
     get:
       operationId: getSentiment
-      summary: Get trending coins with sentiment, volatility, and full technical analysis
+      summary: Get trending coins with full breakout diagnostics and sentiment analysis
       responses:
         "200":
           description: Successful response
@@ -38,6 +38,10 @@ paths:
                       type: object
                       properties:
                         symbol:
+                          type: string
+                        current_price:
+                          type: number
+                        price_source:
                           type: string
                         reddit_mentions:
                           type: integer
@@ -93,6 +97,22 @@ paths:
                           type: boolean
                         active_address_spike:
                           type: boolean
+                        whale_alert:
+                          type: boolean
+                        btc_inflow_spike:
+                          type: boolean
+                        rsi:
+                          type: number
+                        volume_divergence:
+                          type: boolean
+                        momentum_health:
+                          type: string
+                        breakout_score:
+                          type: integer
+                        time_estimate_to_tp:
+                          type: string
+                        buy_window_note:
+                          type: string
 
   /market:
     get:
