@@ -126,9 +126,7 @@ def update_data():
         print("Error during update:", e)
 
 
-scheduler = BackgroundScheduler()
-scheduler.add_job(update_data, 'interval', minutes=30)
-scheduler.start()
+
 update_data()
 
 
