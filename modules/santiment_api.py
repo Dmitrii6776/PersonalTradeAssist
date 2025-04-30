@@ -3,11 +3,17 @@ import requests
 def fetch_social_metrics(symbol):
     try:
         url = f"https://api.coingecko.com/api/v3/coins/{symbol.lower()}"
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, timeout=5)
         if response.status_code != 200:
+            print(f"[CoinGecko fallback] {symbol} returned status {response.status_code}")
             return {}
 
-        data = response.json()
+        try:
+            data = response.json()
+        except Exception:
+            print(f"[CoinGecko fallback] JSON decode error for {symbol}")
+            return {}
+
         sentiment_score = data.get("sentiment_votes_up_percentage") or 0
 
         return {
