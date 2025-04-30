@@ -48,7 +48,10 @@ def update_data():
 
 @app.route("/sentiment")
 def get_sentiment():
-    return jsonify(sentiment_data)
+    return jsonify({
+        "timestamp": sentiment_data.get("timestamp"),
+        "sample": sentiment_data.get("trending_coins", [])[:3]  # limit output for testing
+    })
 
 if __name__ == "__main__":
     try:
