@@ -11,6 +11,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from modules.coingecko_api import fetch_coingecko_market_data, fetch_coingecko_categories
 from modules.cryptopanic_api import fetch_cryptopanic_news
 from modules.santiment_api import fetch_social_metrics
+from modules.momentum_analysis import calculate_rsi, detect_volume_divergence, calculate_momentum_health
 
 app = Flask(__name__)
 
@@ -110,6 +111,11 @@ def fetch_candles(symbol, interval):
         if response.status_code == 200:
             data = response.json()
             closes = [float(candle[4]) for candle in data['result']['list']]
+            volumes = [float(candle[5]) for candle in fetch_candles(coin, 60)]  # 1h volumes
+
+            rsi = calculate_rsi(closes)
+            volume_divergence = detect_volume_divergence(volumes)
+            momentum_health = calculate_momentum_health(rsi, volume_divergence)
             return closes
         else:
             return []
@@ -262,7 +268,10 @@ def update_data():
                 "sector": sector,  # 🆕
                 "news_sentiment": coin_news_sentiment,  # 🆕
                 "social_dominance_spike": social_dominance_spike,  # 🆕
-                "active_address_spike": active_address_spike  # 🆕
+                "active_address_spike": active_address_spike,
+                "rsi": rsi,
+                "volume_divergence": volume_divergence,
+                "momentum_health": momentum_health 
             
             })
     except Exception as e:
