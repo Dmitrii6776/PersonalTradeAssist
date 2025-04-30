@@ -208,6 +208,15 @@ def update_data():
 
             volatility = (high_24h - low_24h) / last_price * 100
             zone, strategy = determine_volatility_zone(volatility)
+            candles = fetch_candles(coin, 60)  # 1h interval
+
+            closes = [float(c[4]) for c in candles] if candles else []
+            volumes = [float(c[5]) for c in candles] if candles else []
+
+# --- Calculate momentum metrics ---
+            rsi = calculate_rsi(closes)
+            volume_divergence = detect_volume_divergence(volumes)
+            momentum_health = calculate_momentum_health(rsi, volume_divergence)
 
              breakout_score = calculate_breakout_score(
                 rsi=rsi,
