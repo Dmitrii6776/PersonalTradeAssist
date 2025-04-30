@@ -5,14 +5,13 @@ from datetime import datetime
 from collections import Counter
 from apscheduler.schedulers.background import BackgroundScheduler
 
+from modules.bybit_api import fetch_market_data, fetch_orderbook, fetch_candles
 from modules.coingecko_api import fetch_coingecko_market_data, fetch_coingecko_categories
 from modules.cryptopanic_api import fetch_cryptopanic_news
 from modules.santiment_api import fetch_social_metrics
 from modules.momentum_analysis import calculate_rsi, detect_volume_divergence, calculate_momentum_health
 from modules.breakout_scoring import calculate_breakout_score
 from modules.buy_timing_logic import get_buy_window
-from modules.bybit_api import fetch_market_data
-from modules.bybit_api import fetch_market_data, fetch_orderbook, fetch_candles
 
 app = Flask(__name__)
 CORS(app)
@@ -20,31 +19,103 @@ CORS(app)
 market_data = {}
 sentiment_data = {}
 
-BYBIT_PRICE_URL = "https://api.bybit.com/v5/market/tickers?category=spot"
-BYBIT_ORDERBOOK_URL = "https://api.bybit.com/v5/market/orderbook?category=spot&symbol={}"
-BYBIT_KLINE_URL = "https://api.bybit.com/v5/market/kline?category=spot&symbol={}&interval={}"
 
-# ... (other function definitions unchanged)
+def determine_volatility_zone(volatility):
+    if volatility <= 3:
+        return "Very Low Volatility", "Micro Scalping Strategy"
+    elif volatility <= 7:
+        return "Low Volatility", "Short-Term Tight Strategy"
+    elif volatility <= 12:
+        return "Medium Volatility", "Balanced Normal Strategy"
+    elif volatility <= 18:
+        return "High Volatility", "Flexible Swing Strategy"
+    else:
+        return "Very High Volatility", "Big Swing Survival Strategy"
 
-# Add the main data update function
+
+def estimate_time_to_tp(score, volatility_zone):
+    if score >= 7 and 'Low' in volatility_zone:
+        return "1–3 hours"
+    elif score >= 5:
+        return "4–6 hours"
+    elif score >= 3:
+        return "6–12 hours"
+    else:
+        return "Uncertain"
+
+
+def analyze_timeframes(symbol, last_price):
+    def calculate_ema(values, period=20):
+        if len(values) < period:
+            return None
+        k = 2 / (period + 1)
+        ema = values[0]
+        for price in values[1:]:
+            ema = price * k + ema * (1 - k)
+        return ema
+
+    results = {}
+    timeframes = {"15m": 15, "1h": 60, "4h": 240}
+    bullish_confirm = True
+
+    for name, minutes in timeframes.items():
+        candles = fetch_candles(symbol, minutes)
+        closes = [float(c[4]) for c in candles] if candles else []
+        if not closes:
+            results[name] = {"price": last_price, "ema20": None, "trend": "unknown"}
+            bullish_confirm = False
+            continue
+
+        ema20 = calculate_ema(closes)
+        trend = "bullish" if last_price > ema20 else "bearish"
+
+        results[name] = {
+            "price": round(last_price, 4),
+            "ema20": round(ema20, 4) if ema20 else None,
+            "trend": trend
+        }
+
+        if trend != "bullish":
+            bullish_confirm = False
+
+    return bullish_confirm, results
+
+
+def fetch_fear_greed_index():
+    try:
+        data = requests.get("https://api.alternative.me/fng/?limit=1").json()
+        d = data['data'][0]
+        return int(d['value']), d['value_classification']
+    except:
+        return 50, "Neutral"
+
+
+def fetch_reddit_mentions(symbols):
+    try:
+        posts = requests.get("https://www.reddit.com/r/CryptoCurrency/new.json", headers={"User-Agent": "Mozilla/5.0"}).json()
+        all_titles = " ".join([p['data']['title'] for p in posts['data']['children']]).lower()
+        mentions = Counter()
+        for symbol in symbols:
+            mentions[symbol] = all_titles.count(symbol.lower())
+        return mentions
+    except:
+        return Counter()
+
 
 def update_data():
     global market_data, sentiment_data
 
     try:
         market_data = fetch_market_data()
-        trending_coins = fetch_trending_coins()
+        trending_coins = requests.get("https://api.coingecko.com/api/v3/search/trending").json()
+        trending_coins = [c['item']['symbol'].upper() for c in trending_coins['coins']]
         fear_greed_score, fear_greed_class = fetch_fear_greed_index()
         reddit_mentions = fetch_reddit_mentions(trending_coins)
         coingecko_markets = fetch_coingecko_market_data()
         coingecko_categories = fetch_coingecko_categories()
         cryptopanic_news = fetch_cryptopanic_news()
 
-        # Build sector lookup
-        sector_lookup = {}
-        for item in coingecko_markets:
-            symbol = item.get('symbol', '').upper()
-            sector_lookup[symbol] = item.get('category', 'Unknown')
+        sector_lookup = {item.get('symbol', '').upper(): item.get('category', 'Unknown') for item in coingecko_markets}
 
         sentiment_data = {
             "timestamp": datetime.now().isoformat(),
@@ -87,9 +158,12 @@ def update_data():
 
             social_metrics = fetch_social_metrics(coin)
             coin_whale_alert = social_metrics.get('whale_alert', False)
-            coin_news_sentiment = "positive" if any("{}".format(coin.lower()) in n['title'].lower() and n.get("votes", {}).get("positive", 0) > n.get("votes", {}).get("negative", 0) for n in cryptopanic_news) else "neutral"
+            coin_news_sentiment = "positive" if any(
+                coin.lower() in n['title'].lower() and n.get("votes", {}).get("positive", 0) > n.get("votes", {}).get("negative", 0)
+                for n in cryptopanic_news
+            ) else "neutral"
 
-            btc_inflow_spike = False  # Add BTC inflow spike logic if needed
+            btc_inflow_spike = False
 
             breakout_score = calculate_breakout_score(
                 rsi=rsi,
@@ -128,8 +202,8 @@ def update_data():
                 "volume_divergence": volume_divergence,
                 "momentum_health": momentum_health,
                 "breakout_score": breakout_score,
-                "time_estimate_to_tp": tp_estimate
-                
+                "time_estimate_to_tp": tp_estimate,
+                "buy_window_note": get_buy_window()
             })
 
     except Exception as e:
@@ -139,5 +213,25 @@ def update_data():
 scheduler = BackgroundScheduler()
 scheduler.add_job(update_data, 'interval', minutes=30)
 scheduler.start()
-
 update_data()
+
+
+@app.route("/sentiment")
+def get_sentiment():
+    return jsonify(sentiment_data)
+
+@app.route("/market")
+def get_market():
+    return jsonify(market_data)
+
+@app.route("/health")
+def get_health():
+    return jsonify({"status": "ok"})
+
+@app.route("/legal")
+def legal():
+    return send_from_directory("static", "legal.html")
+
+@app.route("/openapi.yaml")
+def serve_openapi():
+    return send_from_directory("static", "openapi.yaml")
