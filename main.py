@@ -229,20 +229,30 @@ def get_sentiment():
 def get_scalp_sentiment():
     filtered = []
     for coin in sentiment_data.get("trending_coins", []):
-        if coin.get("volatility_zone", "").startswith("Very Low") or coin.get("volatility_zone", "").startswith("Low"):
-            if coin.get("spread_percent") is not None and coin["spread_percent"] <= 0.3:
-                if coin.get("multi_timeframe_confirmation"):
-                    if coin.get("breakout_score", 0) >= 6:
-                        if 45 <= coin.get("rsi", 0) <= 65:
-                            if coin.get("time_estimate_to_tp", "").startswith("1") or coin.get("time_estimate_to_tp", "").startswith("2"):
-                                filtered.append(coin)
+        spread = coin.get("bid_ask_spread_percent")
+        if spread is None or spread > 0.3:
+            continue
+        volatility_zone = coin.get("volatility_zone", "")
+        if not volatility_zone.startswith("Very Low") and not volatility_zone.startswith("Low"):
+            continue
+        if not coin.get("multi_timeframe_confirmation"):
+            continue
+        if coin.get("breakout_score", 0) < 6:
+            continue
+        rsi = coin.get("rsi")
+        if rsi is None or not 45 <= rsi <= 65:
+            continue
+        time_estimate = coin.get("time_estimate_to_tp", "")
+        if not time_estimate.startswith("1") and not time_estimate.startswith("2"):
+            continue
+        filtered.append(coin)
 
     return jsonify({
         "timestamp": datetime.now().isoformat(),
         "strategy": "Scalping (0.8–1.5% TP, tight spreads, short holding time)",
         "qualified_coins": filtered
     })
-
+    
 @app.route("/market")
 def get_market():
     return jsonify(market_data)
