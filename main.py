@@ -228,7 +228,7 @@ def update_data():
 scheduler = BackgroundScheduler()
 scheduler.add_job(update_data, 'interval', minutes=30)
 scheduler.start()
-print("✅ Coins collected:", len(sentiment_data["trending_coins"]))
+print("✅ Coins collected:", len(sentiment_data.get("trending_coins", [])))
 update_data()
 
 
