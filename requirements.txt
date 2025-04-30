@@ -1,9 +1,6 @@
-requests==2.31.0
-beautifulsoup4==4.12.2
-flask==2.3.2
+requests
+beautifulsoup4
 apscheduler==3.10.4
-numpy
 flask
 flask-cors
-requests
 numpy
