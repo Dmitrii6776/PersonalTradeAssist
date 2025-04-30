@@ -25,16 +25,17 @@ def fetch_market_data():
 
 def fetch_orderbook(symbol):
     try:
-        url = f"{BYBIT_BASE_URL}/orderbook?category=spot&symbol={symbol}USDT"
+        url = f"https://api.bybit.com/v5/market/orderbook?category=spot&symbol={symbol}USDT"
         response = requests.get(url)
         if response.status_code == 200:
             data = response.json()
+            order_data = data["result"]["a"] + data["result"]["b"]  # ask + bid lists
             bids = sorted(
-                [{"price": float(e["price"]), "size": float(e["size"])} for e in data["result"] if e["side"] == "Buy"],
+                [{"price": float(e[0]), "size": float(e[1])} for e in data["result"]["b"]],
                 key=lambda x: -x["price"]
             )[:5]
             asks = sorted(
-                [{"price": float(e["price"]), "size": float(e["size"])} for e in data["result"] if e["side"] == "Sell"],
+                [{"price": float(e[0]), "size": float(e[1])} for e in data["result"]["a"]],
                 key=lambda x: x["price"]
             )[:5]
             return bids, asks
