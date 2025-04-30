@@ -67,7 +67,7 @@ def analyze_timeframes(symbol, last_price):
             continue
 
         ema20 = calculate_ema(closes)
-        trend = "bullish" if last_price > ema20 else "bearish"
+        trend = "bullish" if ema20 is not None and last_price > ema20 else "bearish"
 
         results[name] = {
             "price": round(last_price, 4),
