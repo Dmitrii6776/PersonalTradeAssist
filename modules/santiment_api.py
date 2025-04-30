@@ -3,17 +3,29 @@ import requests
 SANTIMENT_API_BASE = "https://api.santiment.net"
 SANTIMENT_API_KEY = "ms6qbnmwxnq6xtne_dx56zkd4tkoaz3xgz"
 
-# Temporary list of supported assets for Santiment API to avoid 400 errors
-SUPPORTED_SANTIMENT_ASSETS = {
-    "BTC", "ETH", "BNB", "XRP", "SOL", "DOGE", "MATIC", "LINK", "ADA", "DOT", "LTC", "UNI", "AVAX"
+# Slug mapping required by Santiment's asset endpoint
+SANTIMENT_SYMBOL_MAP = {
+    "BTC": "bitcoin",
+    "ETH": "ethereum",
+    "BNB": "binance-coin",
+    "XRP": "ripple",
+    "DOGE": "dogecoin",
+    "ADA": "cardano",
+    "SOL": "solana",
+    "AVAX": "avalanche",
+    "DOT": "polkadot",
+    "LINK": "chainlink",
+    "MATIC": "polygon",
+    "LTC": "litecoin"
 }
 
 def fetch_social_metrics(symbol):
     try:
-        if symbol.upper() not in SUPPORTED_SANTIMENT_ASSETS:
+        slug = SANTIMENT_SYMBOL_MAP.get(symbol.upper())
+        if not slug:
             return {}  # Skip unsupported assets
 
-        url = f"{SANTIMENT_API_BASE}/v1/assets/{symbol.lower()}/social_volume"
+        url = f"{SANTIMENT_API_BASE}/v1/assets/{slug}/social_volume"
         headers = {"Authorization": f"Bearer {SANTIMENT_API_KEY}"}
         response = requests.get(url, headers=headers, timeout=10)
 
