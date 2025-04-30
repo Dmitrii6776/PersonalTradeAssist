@@ -124,14 +124,10 @@ def update_data():
 
         sector_lookup = {item.get('symbol', '').upper(): item.get('category', 'Unknown') for item in coingecko_markets}
 
-        sentiment_data = {
-            "timestamp": datetime.now().isoformat(),
-            "fear_greed": {
-                "score": fear_greed_score,
-                "classification": fear_greed_class
-            },
-            "trending_coins": []
-        }
+        sentiment_data.clear()
+        sentiment_data["timestamp"] = datetime.now().isoformat()
+        sentiment_data["fear_greed"] = {"score": fear_greed_score, "classification": fear_greed_class}
+        sentiment_data["trending_coins"] = []
 
         for coin in trending_coins:
             market = market_data.get(coin + "USDT")
