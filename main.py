@@ -13,7 +13,8 @@ from modules.santiment_api import fetch_social_metrics
 from modules.momentum_analysis import calculate_rsi, detect_volume_divergence, calculate_momentum_health
 from modules.breakout_scoring import calculate_breakout_score
 from modules.buy_timing_logic import get_buy_window
-
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 
 
