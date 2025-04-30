@@ -193,8 +193,6 @@ def update_data():
 
         for coin in trending_coins:
             market = market_data.get(coin + "USDT", None)
-            coin_whale_alert = any(
-            coin.lower() in tx.get("symbol", "").lower()
         
 
             last_price = market['last']
