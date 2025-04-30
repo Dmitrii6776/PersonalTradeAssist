@@ -1,6 +1,11 @@
 import os
 import requests
+from flask import Flask, jsonify, send_from_directory
+from flask_cors import CORS
 from datetime import datetime
+from collections import Counter
+from apscheduler.schedulers.background import BackgroundScheduler
+
 from modules.bybit_api import fetch_market_data, fetch_orderbook, fetch_candles
 from modules.coingecko_api import fetch_coingecko_market_data, fetch_coingecko_categories
 from modules.cryptopanic_api import fetch_cryptopanic_news
@@ -9,13 +14,93 @@ from modules.momentum_analysis import calculate_rsi, detect_volume_divergence, c
 from modules.breakout_scoring import calculate_breakout_score
 from modules.buy_timing_logic import get_buy_window
 
-# ---- BELOW: RETAINED FUNCTIONALITY AND ROUTES ----
-
 app = Flask(__name__)
 CORS(app)
 
 market_data = {}
 sentiment_data = {}
+
+
+def determine_volatility_zone(volatility):
+    if volatility <= 3:
+        return "Very Low Volatility", "Micro Scalping Strategy"
+    elif volatility <= 7:
+        return "Low Volatility", "Short-Term Tight Strategy"
+    elif volatility <= 12:
+        return "Medium Volatility", "Balanced Normal Strategy"
+    elif volatility <= 18:
+        return "High Volatility", "Flexible Swing Strategy"
+    else:
+        return "Very High Volatility", "Big Swing Survival Strategy"
+
+
+def estimate_time_to_tp(score, volatility_zone):
+    if score >= 7 and 'Low' in volatility_zone:
+        return "1–3 hours"
+    elif score >= 5:
+        return "4–6 hours"
+    elif score >= 3:
+        return "6–12 hours"
+    else:
+        return "Uncertain"
+
+
+def analyze_timeframes(symbol, last_price):
+    def calculate_ema(values, period=20):
+        if len(values) < period:
+            return None
+        k = 2 / (period + 1)
+        ema = values[0]
+        for price in values[1:]:
+            ema = price * k + ema * (1 - k)
+        return ema
+
+    results = {}
+    timeframes = {"15m": 15, "1h": 60, "4h": 240}
+    bullish_confirm = True
+
+    for name, minutes in timeframes.items():
+        candles = fetch_candles(symbol, minutes)
+        closes = [float(c[4]) for c in candles] if candles else []
+        if not closes:
+            results[name] = {"price": last_price, "ema20": None, "trend": "unknown"}
+            bullish_confirm = False
+            continue
+
+        ema20 = calculate_ema(closes)
+        trend = "bullish" if ema20 is not None and last_price > ema20 else "bearish"
+
+        results[name] = {
+            "price": round(last_price, 4),
+            "ema20": round(ema20, 4) if ema20 else None,
+            "trend": trend
+        }
+
+        if trend != "bullish":
+            bullish_confirm = False
+
+    return bullish_confirm, results
+
+
+def fetch_fear_greed_index():
+    try:
+        data = requests.get("https://api.alternative.me/fng/?limit=1").json()
+        d = data['data'][0]
+        return int(d['value']), d['value_classification']
+    except:
+        return 50, "Neutral"
+
+
+def fetch_reddit_mentions(symbols):
+    try:
+        posts = requests.get("https://www.reddit.com/r/CryptoCurrency/new.json", headers={"User-Agent": "Mozilla/5.0"}).json()
+        all_titles = " ".join([p['data']['title'] for p in posts['data']['children']]).lower()
+        mentions = Counter()
+        for symbol in symbols:
+            mentions[symbol] = all_titles.count(symbol.lower())
+        return mentions
+    except:
+        return Counter()
 
 
 def update_data():
@@ -134,7 +219,9 @@ def update_data():
         print("Error during update:", e)
 
 
-
+scheduler = BackgroundScheduler()
+scheduler.add_job(update_data, 'interval', minutes=30)
+scheduler.start()
 update_data()
 
 
