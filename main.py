@@ -28,15 +28,15 @@ def update_data():
 
     print("🔄 Starting update_data...")
     try:
-        trending_coins = ['BTC', 'ETH', 'XRP', 'SOL', 'ADA', 'DOGE']  # keep minimal for test
+        trending_coins = ["BTC", "ETH", "XRP", "SOL", "ADA", "DOGE"]
         sentiment_data["trending_coins"] = []
 
-        for coin in trending_coins:
-            print(f"📊 Processing {coin}...")
-            social_metrics = fetch_social_metrics(coin)
-            print(f"✅ Fetched metrics for {coin}:", social_metrics)
+        for symbol in trending_coins:
+            print(f"📊 Processing {symbol}...")
+            social_metrics = fetch_social_metrics(symbol)
+            print(f"✅ Fetched metrics for {symbol}:", social_metrics)
             sentiment_data["trending_coins"].append({
-                "symbol": coin,
+                "symbol": symbol,
                 **social_metrics
             })
 
