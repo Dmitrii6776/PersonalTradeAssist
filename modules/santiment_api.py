@@ -8,7 +8,7 @@ def fetch_social_metrics(symbol):
             return {}
 
         data = response.json()
-        sentiment_score = data.get("sentiment_votes_up_percentage", 0)
+        sentiment_score = data.get("sentiment_votes_up_percentage") or 0
 
         return {
             "whale_alert": sentiment_score > 65,
