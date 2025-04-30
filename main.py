@@ -216,7 +216,9 @@ def update_data():
                 "scalp_tp": take_profit,
                 "scalp_sl": stop_loss,
                 "buy_window_note": get_buy_window()
+            
             })
+            print("🔍 After scoring:", coin)
 
     except Exception as e:
         print("Error during update:", e)
@@ -225,6 +227,7 @@ def update_data():
 scheduler = BackgroundScheduler()
 scheduler.add_job(update_data, 'interval', minutes=30)
 scheduler.start()
+print("✅ Coins collected:", len(sentiment_data["trending_coins"]))
 update_data()
 
 
