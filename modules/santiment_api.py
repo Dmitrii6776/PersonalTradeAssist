@@ -1,16 +1,19 @@
 import requests
 
-SANTIMENT_API_URL  = "https://api.santiment.net/graphql"
-SANTIMENT_API_KEY = "ms6qbmnwxnq6xtne_dx56zkd4toaz3xgz"  # Replace with env or config in production
+SANTIMENT_API_BASE = "https://api.santiment.net"
+SANTIMENT_API_KEY = "ms6qbnmwxnq6xtne_dx56zkd4tkoaz3xgz"
 
+# Temporary list of supported assets for Santiment API to avoid 400 errors
+SUPPORTED_SANTIMENT_ASSETS = {
+    "BTC", "ETH", "BNB", "XRP", "SOL", "DOGE", "MATIC", "LINK", "ADA", "DOT", "LTC", "UNI", "AVAX"
+}
 
 def fetch_social_metrics(symbol):
     try:
-        base = globals().get("SANTIMENT_API_URL ", "https://api.santiment.net")
-        key = globals().get("SANTIMENT_API_KEY", "")
-        url = f"{base}/v1/assets/{symbol.lower()}/social_volume"
-        headers = {"Authorization": f"Bearer {key}"}
-        url = f"{SANTIMENT_API_URL }/v1/assets/{symbol.lower()}/social_volume"
+        if symbol.upper() not in SUPPORTED_SANTIMENT_ASSETS:
+            return {}  # Skip unsupported assets
+
+        url = f"{SANTIMENT_API_BASE}/v1/assets/{symbol.lower()}/social_volume"
         headers = {"Authorization": f"Bearer {SANTIMENT_API_KEY}"}
         response = requests.get(url, headers=headers, timeout=10)
 
@@ -25,9 +28,9 @@ def fetch_social_metrics(symbol):
         data = response.json()
 
         return {
-            "social_dominance_spike": data.get("social_dominance", 0) > 1.5,  # mock logic
-            "active_address_spike": data.get("unique_social_users", 0) > 150,  # mock
-            "whale_alert": data.get("whale_mentions", 0) > 3  # mock
+            "social_dominance_spike": data.get("social_dominance", 0) > 1.5,
+            "active_address_spike": data.get("unique_social_users", 0) > 150,
+            "whale_alert": data.get("whale_mentions", 0) > 3
         }
 
     except Exception as e:
