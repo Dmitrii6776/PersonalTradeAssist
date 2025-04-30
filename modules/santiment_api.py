@@ -1,7 +1,7 @@
 import requests
 
-SANTIMENT_API_BASE = "https://api.santiment.net"
-SANTIMENT_API_KEY = "your_santiment_api_key"  # Replace with env or config in production
+SANTIMENT_API_URL = "https://api.santiment.net/graphql"
+SANTIMENT_API_KEY = "ms6qbmnwxnq6xtne_dx56zkd4toaz3xgz"  # Replace with env or config in production
 
 
 def fetch_social_metrics(symbol):
