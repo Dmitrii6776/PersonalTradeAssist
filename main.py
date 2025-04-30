@@ -157,6 +157,10 @@ def update_data():
             rsi = calculate_rsi(closes)
             volume_divergence = detect_volume_divergence(volumes)
             momentum_health = calculate_momentum_health(rsi, volume_divergence)
+            if spread_percent > 1.5:
+                continue
+            if volatility_zone not in ["Very Low", "Low"]:
+                continue
 
             social_metrics = fetch_social_metrics(coin)
             coin_whale_alert = social_metrics.get('whale_alert', False)
