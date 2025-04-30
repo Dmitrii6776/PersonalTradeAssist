@@ -284,7 +284,8 @@ def update_data():
                 "active_address_spike": active_address_spike,
                 "rsi": rsi,
                 "volume_divergence": volume_divergence,
-                "momentum_health": momentum_health 
+                "momentum_health": momentum_health,
+                "breakout_score": breakout_score
             
             })
     except Exception as e:
