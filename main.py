@@ -215,10 +215,11 @@ def update_data():
                 "scalp_entry": round(last_price, 4),
                 "scalp_tp": take_profit,
                 "scalp_sl": stop_loss,
-                "buy_window_note": get_buy_window(),
-                print("🔍 After scoring:", coin)
+                "buy_window_note": get_buy_window()
+                
             
             })
+            print("🔍 After scoring:", coin)
             
 
     except Exception as e:
