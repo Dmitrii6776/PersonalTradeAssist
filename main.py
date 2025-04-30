@@ -1,3 +1,4 @@
+import os
 import requests
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
@@ -235,3 +236,7 @@ def legal():
 @app.route("/openapi.yaml")
 def serve_openapi():
     return send_from_directory("static", "openapi.yaml")
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    app.run(host="0.0.0.0", port=port)
