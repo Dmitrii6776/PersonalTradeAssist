@@ -104,6 +104,8 @@ def update_data():
 
             sentiment_data["trending_coins"].append({
                 "symbol": coin,
+                "current_price": round(last_price, 2),
+                "price_source": "Bybit Spot API",
                 "reddit_mentions": mentions,
                 "signal": signal,
                 "volatility_percent": round(volatility, 2),
@@ -125,6 +127,7 @@ def update_data():
                 "momentum_health": momentum_health,
                 "breakout_score": breakout_score,
                 "time_estimate_to_tp": tp_estimate
+                
             })
 
     except Exception as e:
