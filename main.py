@@ -139,6 +139,8 @@ def update_data():
             zone, strategy = determine_volatility_zone(volatility)
 
             mentions = reddit_mentions.get(coin, 0)
+            take_profit = round(last_price * 1.008, 4)  # ~0.8% gain
+            stop_loss = round(last_price * 0.992, 4)    # ~0.8% risk
             signal = "BUY" if mentions >= 2 and fear_greed_score >= 50 else "CAUTION"
 
             bids, asks = fetch_orderbook(coin)
@@ -204,6 +206,9 @@ def update_data():
                 "momentum_health": momentum_health,
                 "breakout_score": breakout_score,
                 "time_estimate_to_tp": tp_estimate,
+                "scalp_entry": round(last_price, 4),
+                "scalp_tp": take_profit,
+                "scalp_sl": stop_loss,
                 "buy_window_note": get_buy_window()
             })
 
@@ -220,6 +225,24 @@ update_data()
 @app.route("/sentiment")
 def get_sentiment():
     return jsonify(sentiment_data)
+    
+@app.route("/scalp-sentiment")
+def get_scalp_sentiment():
+    filtered = []
+    for coin in sentiment_data.get("trending_coins", []):
+        if coin.get("volatility_zone", "").startswith("Very Low") or coin.get("volatility_zone", "").startswith("Low"):
+            if coin.get("spread_percent") is not None and coin["spread_percent"] <= 0.3:
+                if coin.get("multi_timeframe_confirmation"):
+                    if coin.get("breakout_score", 0) >= 6:
+                        if 45 <= coin.get("rsi", 0) <= 65:
+                            if coin.get("time_estimate_to_tp", "").startswith("1") or coin.get("time_estimate_to_tp", "").startswith("2"):
+                                filtered.append(coin)
+
+    return jsonify({
+        "timestamp": datetime.now().isoformat(),
+        "strategy": "Scalping (0.8–1.5% TP, tight spreads, short holding time)",
+        "qualified_coins": filtered
+    })
 
 @app.route("/market")
 def get_market():
