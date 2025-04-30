@@ -1,52 +1,40 @@
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
-BYBIT_BASE_URL = "https://api.bybit.com/v5/market"
-
+session = requests.Session()
+session.mount("https://", HTTPAdapter(max_retries=3))
 
 def fetch_market_data():
     try:
-        url = f"{BYBIT_BASE_URL}/tickers?category=spot"
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            tickers = data['result']['list']
-            return {
-                t['symbol']: {
-                    'last': float(t['lastPrice']),
-                    'high': float(t['highPrice24h']),
-                    'low': float(t['lowPrice24h'])
-                }
-                for t in tickers
-            }
-    except Exception as e:
-        print("Error in fetch_market_data:", e)
-    return {}
-
+        url = "https://api.bybit.com/v5/market/tickers?category=spot"
+        response = session.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        result = {}
+        for item in data.get("result", {}).get("list", []):
+            result[item["symbol"]] = item
+        return result
+    except requests.exceptions.RequestException as e:
+        print("❗ Error in fetch_market_data:", e)
+        return {}
 
 def fetch_orderbook(symbol):
     try:
-        url = f"https://api.bybit.com/v5/market/orderbook?category=spot&symbol={symbol}USDT"
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            bids_raw = data["result"].get("b", [])
-            asks_raw = data["result"].get("a", [])
-
-            bids = [{"price": float(bid[0]), "size": float(bid[1])} for bid in bids_raw][:5]
-            asks = [{"price": float(ask[0]), "size": float(ask[1])} for ask in asks_raw][:5]
-
-            return bids, asks
-    except Exception as e:
-        print("Error in fetch_orderbook:", e)
-    return [], []
-
+        url = f"https://api.bybit.com/v5/market/orderbook?category=spot&symbol={symbol}&limit=1"
+        response = session.get(url, timeout=10)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"❗ Error in fetch_orderbook for {symbol}:", e)
+        return {}
 
 def fetch_candles(symbol, interval):
     try:
-        url = f"{BYBIT_BASE_URL}/kline?category=spot&symbol={symbol}USDT&interval={interval}"
-        response = requests.get(url)
-        if response.status_code == 200:
-            return response.json()['result']['list']
-    except Exception as e:
-        print("Error in fetch_candles:", e)
-    return []
+        url = f"https://api.bybit.com/v5/market/kline?category=spot&symbol={symbol}&interval={interval}"
+        response = session.get(url, timeout=10)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"❗ Error in fetch_candles for {symbol}:", e)
+        return {}
