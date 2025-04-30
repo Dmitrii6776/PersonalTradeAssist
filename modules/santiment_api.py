@@ -53,4 +53,4 @@ def fetch_social_metrics(symbol):
             return None
     except Exception as e:
         print(f"Exception in fetch_social_metrics: {e}")
-        return None
+        return {}
