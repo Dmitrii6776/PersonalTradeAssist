@@ -108,8 +108,7 @@ def update_data():
 
     try:
         market_data = fetch_market_data()
-        trending_coins = requests.get("https://api.coingecko.com/api/v3/search/trending").json()
-        trending_coins = [c['item']['symbol'].upper() for c in trending_coins['coins']]
+        trending_coins = [s.replace("USDT", "") for s in market_data.keys() if s.endswith("USDT") and market_data[s]['high'] > 0 and market_data[s]['low'] > 0]
         fear_greed_score, fear_greed_class = fetch_fear_greed_index()
         reddit_mentions = fetch_reddit_mentions(trending_coins)
         coingecko_markets = fetch_coingecko_market_data()
