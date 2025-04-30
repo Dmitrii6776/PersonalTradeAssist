@@ -17,7 +17,7 @@ def fetch_social_metrics(symbol):
 
         sentiment_score = data.get("sentiment_votes_up_percentage") or 0
 
-        time.sleep(0.3)  # Avoid hitting rate limit
+        time.sleep(0.7)  # Avoid hitting rate limit
 
         return {
             "whale_alert": sentiment_score > 65,
