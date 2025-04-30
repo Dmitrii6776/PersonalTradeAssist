@@ -11,6 +11,12 @@ from modules.buy_timing_logic import get_buy_window
 
 # ---- BELOW: RETAINED FUNCTIONALITY AND ROUTES ----
 
+app = Flask(__name__)
+CORS(app)
+
+market_data = {}
+sentiment_data = {}
+
 
 def update_data():
     global market_data, sentiment_data
