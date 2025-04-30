@@ -14,7 +14,13 @@ from modules.momentum_analysis import calculate_rsi, detect_volume_divergence, c
 from modules.breakout_scoring import calculate_breakout_score
 from modules.buy_timing_logic import get_buy_window
 
+
+
+
 app = Flask(__name__)
+
+
+
 CORS(app)
 
 market_data = {}
