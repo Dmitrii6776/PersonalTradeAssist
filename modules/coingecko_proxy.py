@@ -32,7 +32,7 @@ def _get_slug_for_symbol(symbol):
     # Ensure cache is populated on first call or if stale
     # Use _LIST_CACHE_LAST_UPDATED for the list cache timestamp
     if not _COIN_LIST_CACHE or (now - _LIST_CACHE_LAST_UPDATED) > CACHE_REFRESH_INTERVAL:
-         _update_coin_list_cache() # Update synchronously if cache is empty/stale
+     _update_coin_list_cache() # Update synchronously if cache is empty/stale
 
     with _CACHE_LOCK:
         return _COIN_LIST_CACHE.get(symbol.upper())
