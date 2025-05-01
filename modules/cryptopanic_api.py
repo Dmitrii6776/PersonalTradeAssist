@@ -1,24 +1,42 @@
 import requests
+import os
+import logging
 
+# Fetch API key from environment variable
+CRYPTO_PANIC_API_KEY = os.environ.get("CRYPTO_PANIC_API_KEY")
 CRYPTO_PANIC_API_URL = "https://cryptopanic.com/api/v1/posts/"
-CRYPTO_PANIC_API_KEY = "4df2734b13aae958a42beccf84983aa2e13d8317"  # 🔥 Replace with your real API key 🔥
+
+if not CRYPTO_PANIC_API_KEY:
+    logging.warning("CRYPTO_PANIC_API_KEY environment variable not set. CryptoPanic news fetching will be disabled.")
 
 def fetch_cryptopanic_news():
-    """Fetch top hot news from CryptoPanic."""
+    """Fetch top hot news from CryptoPanic. Requires CRYPTO_PANIC_API_KEY env var."""
+    if not CRYPTO_PANIC_API_KEY:
+        return [] # Return empty list if API key is missing
+
     try:
         params = {
             "auth_token": CRYPTO_PANIC_API_KEY,
-            "filter": "hot",
+            "filter": "hot", # You can change filter (e.g., 'rising')
             "kind": "news",
-            "regions": "en",
-            "public": "true"
+            "public": "true", # Fetch publicly available news
+            # "currencies": "BTC,ETH", # Optional: filter by specific currencies
+            # "regions": "en", # Optional: filter by language/region
         }
-        response = requests.get(CRYPTO_PANIC_API_URL, params=params)
-        if response.status_code == 200:
-            return response.json().get('results', [])
-        else:
-            print(f"Error fetching CryptoPanic news: {response.status_code}")
-            return []
+        response = requests.get(CRYPTO_PANIC_API_URL, params=params, timeout=15)
+        response.raise_for_status() # Raise HTTPError for bad responses
+
+        data = response.json()
+        news_results = data.get('results', [])
+        logging.info(f"Fetched {len(news_results)} news items from CryptoPanic.")
+        return news_results
+
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error fetching CryptoPanic news: {e}")
+        return []
+    except requests.exceptions.JSONDecodeError as e:
+         logging.error(f"Error decoding CryptoPanic JSON response: {e}")
+         return []
     except Exception as e:
-        print(f"Exception in fetch_cryptopanic_news: {e}")
+        logging.error(f"Unexpected exception in fetch_cryptopanic_news: {e}", exc_info=True)
         return []
