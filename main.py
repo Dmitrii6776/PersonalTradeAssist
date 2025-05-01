@@ -130,9 +130,11 @@ def update_data():
         sentiment_data["trending_coins"] = []
 
         for coin in trending_coins:
-            market = market_data.get(coin + "USDT")
+            market = market_data.get(coin + "USDT", None)
             if not market:
                 continue
+
+            print("✅ Candidate:", coin)
 
             last_price = market['last']
             high_24h = market_data[s].get("high", 0)
@@ -186,6 +188,7 @@ def update_data():
             )
 
             tp_estimate = estimate_time_to_tp(breakout_score, zone)
+            
 
             sentiment_data["trending_coins"].append({
                 "symbol": coin,
@@ -288,6 +291,7 @@ def index():
 if __name__ == "__main__":
     try:
         update_data()
+        print("📡 Starting update_data")
     except Exception as e:
         print("❗ Failed during update_data():", e)
 
