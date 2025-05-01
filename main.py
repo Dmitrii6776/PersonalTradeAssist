@@ -35,9 +35,12 @@ app = Flask(__name__)
 CORS(app)
 
 # Global data stores (consider thread safety if scaling significantly)
-market_data = {}
-sentiment_data = {}
-last_update_time = None
+market_data = {} # Raw Bybit data
+sentiment_data = {} # Enriched data
+basic_coin_data = {} # NEW: Store basic info immediately after startup
+last_full_update_time = None
+last_basic_update_time = None
+
 
 def determine_volatility_zone(volatility):
     """Classifies volatility percentage into zones and suggests a strategy."""
@@ -171,176 +174,197 @@ def fetch_reddit_mentions(symbols):
         logging.error(f"Error processing Reddit data: {e}")
     return mentions
 
+# --- NEW: Function for Basic Data Fetch ---
+def fetch_and_process_basic_data():
+    """Fetches essential Bybit data and calculates basic metrics only."""
+    global market_data, basic_coin_data, last_basic_update_time
+    logging.info("🚀 Starting BASIC data fetch cycle...")
+    try:
+        bybit_market_data = fetch_market_data()
+        if not bybit_market_data:
+            logging.error("Failed to fetch Bybit market data during basic fetch.")
+            return
+        market_data = bybit_market_data # Update global raw market data
+
+        temp_basic_data = {}
+        potential_coins = [ # Same logic to find potential coins
+            item["symbol"].replace("USDT", "")
+            for item in market_data.values()
+            if item.get("symbol", "").endswith("USDT")
+               and float(item.get("lastPrice", 0)) > 0
+               and item.get("symbol")
+        ]
+
+        for coin_symbol in potential_coins:
+            symbol_usdt = coin_symbol + "USDT"
+            market = market_data.get(symbol_usdt)
+            if not market: continue
+
+            try:
+                # --- Extract only essential Bybit data ---
+                last_price_str = market.get("lastPrice")
+                high_24h_str = market.get("highPrice24h")
+                low_24h_str = market.get("lowPrice24h")
+                volume_24h_str = market.get("volume24h") # Useful context
+
+                if not all([last_price_str, high_24h_str, low_24h_str]): continue
+                last_price = float(last_price_str)
+                high_24h = float(high_24h_str)
+                low_24h = float(low_24h_str)
+                if last_price <= 0: continue
+
+                volatility = ((high_24h - low_24h) / last_price * 100) if last_price > 0 else 0
+                zone, strategy = determine_volatility_zone(volatility)
+
+                # --- Optionally fetch order book for spread (can be skipped if too slow) ---
+                spread_percent = None
+                orderbook_data = fetch_orderbook(symbol_usdt) # Keep this? Or skip for speed?
+                if orderbook_data and orderbook_data.get('result'):
+                     bids_raw = orderbook_data['result'].get('b', [])
+                     asks_raw = orderbook_data['result'].get('a', [])
+                     if bids_raw and asks_raw:
+                         best_bid = float(bids_raw[0][0])
+                         best_ask = float(asks_raw[0][0])
+                         if best_ask > best_bid > 0:
+                              spread_percent = (best_ask - best_bid) / last_price * 100
+
+                # Store basic info
+                temp_basic_data[coin_symbol] = {
+                    "symbol": coin_symbol,
+                    "symbol_usdt": symbol_usdt,
+                    "current_price": round(last_price, 4),
+                    "volume_24h": float(volume_24h_str) if volume_24h_str else None,
+                    "volatility_percent": round(volatility, 2),
+                    "volatility_zone": zone,
+                    "strategy_suggestion": strategy,
+                    "bid_ask_spread_percent": round(spread_percent, 4) if spread_percent is not None else None,
+                    "timestamp": datetime.now().isoformat() # Timestamp of this basic fetch
+                }
+            except Exception as e:
+                 logging.error(f"[{coin_symbol}] Error during BASIC processing: {e}", exc_info=True)
+
+        basic_coin_data = temp_basic_data # Update global basic data store
+        last_basic_update_time = datetime.now()
+        logging.info(f"✅ Basic data fetch cycle finished. Processed {len(basic_coin_data)} coins.")
+
+    except Exception as e:
+        logging.error(f"Critical error during fetch_and_process_basic_data: {e}", exc_info=True)
+
 
 def update_data():
-    """Main function to fetch all data, analyze coins, and update global state."""
-    global market_data, sentiment_data, last_update_time
-    logging.info("🚀 Starting data update cycle...")
+    """Main function to fetch all data, enrich with CG/Reddit, analyze coins, and update global state."""
+    global market_data, sentiment_data, last_full_update_time, basic_coin_data # Add basic_coin_data
+    logging.info("🚀 Starting FULL data update cycle...")
 
     try:
         # --- Fetch Global/Market Data ---
+        # We might already have recent Bybit data from basic fetch, but fetching again ensures freshness for the full cycle
         bybit_market_data = fetch_market_data()
         if not bybit_market_data:
-            logging.error("Failed to fetch Bybit market data. Aborting update cycle.")
+            logging.error("Failed to fetch Bybit market data. Aborting full update cycle.")
             return
         market_data = bybit_market_data # Update global market data
 
-        # Determine potential coins to analyze (USDT pairs with some price)
-        # Filter criteria can be adjusted (e.g., add volume minimum)
-        potential_coins = [
+        potential_coins = [ # Recalculate potential coins based on fresh market data
             item["symbol"].replace("USDT", "")
-            for item in market_data.values() # Iterate through values directly
+            for item in market_data.values()
             if item.get("symbol", "").endswith("USDT")
-               and float(item.get("lastPrice", 0)) > 0 # Check for non-zero price
-               and item.get("symbol") # Ensure symbol exists
+               and float(item.get("lastPrice", 0)) > 0
+               and item.get("symbol")
         ]
-        logging.info(f"Found {len(potential_coins)} potential USDT pairs from Bybit.")
+        logging.info(f"Found {len(potential_coins)} potential USDT pairs for full analysis.")
 
-        # Fetch context data (less frequently changing data)
+        # Fetch context data (only needed for full analysis)
         fear_greed_score, fear_greed_class = fetch_fear_greed_index()
-        reddit_mentions = fetch_reddit_mentions(potential_coins)
-        coingecko_markets = fetch_coingecko_market_data() # Used for sector lookup
-        # coingecko_categories = fetch_coingecko_categories() # Not currently used, commented out
+        reddit_mentions = fetch_reddit_mentions(potential_coins) # Moved here
+        coingecko_markets = fetch_coingecko_market_data()
         cryptopanic_news = fetch_cryptopanic_news()
 
-        # Build sector lookup (can be cached if CoinGecko data is fetched less often)
-        sector_lookup = {
-            item.get('symbol', '').upper(): next((cat for cat in item.get('categories', []) if cat), 'Unknown') # Takes first category if available
+        sector_lookup = { # Rebuild lookup based on potentially new market data
+            item.get('symbol', '').upper(): next((cat for cat in item.get('categories', []) if cat), 'Unknown')
             for item in coingecko_markets if item.get('symbol')
         }
-        logging.info(f"Built sector lookup for {len(sector_lookup)} coins from CoinGecko.")
 
         # --- Process Each Coin ---
         processed_coins_data = []
         skipped_coins = Counter()
 
+        # Use the latest basic_coin_data as a starting point or fallback
+        current_basic_data = basic_coin_data.copy()
+
         for coin_symbol in potential_coins:
             symbol_usdt = coin_symbol + "USDT"
             market = market_data.get(symbol_usdt)
+            basic_info = current_basic_data.get(coin_symbol) # Get basic info fetched earlier
 
             if not market:
-                logging.warning(f"[{coin_symbol}] Market data not found in fetched list, skipping.")
+                logging.warning(f"[{coin_symbol}] Fresh market data not found in fetched list, skipping full analysis.")
                 skipped_coins['market_data_missing'] += 1
                 continue
 
             try:
+                # Extract fresh price/vol data
                 last_price_str = market.get("lastPrice")
                 high_24h_str = market.get("highPrice24h")
                 low_24h_str = market.get("lowPrice24h")
-                volume_24h_str = market.get("volume24h")
-
-                # --- Basic Data Validation and Conversion ---
-                if not all([last_price_str, high_24h_str, low_24h_str, volume_24h_str]):
-                    logging.warning(f"[{coin_symbol}] Missing essential price/volume data, skipping.")
-                    skipped_coins['missing_price_data'] += 1
-                    continue
-
+                # ... (validation) ...
                 last_price = float(last_price_str)
-                high_24h = float(high_24h_str)
-                low_24h = float(low_24h_str)
-                # volume_24h = float(volume_24h_str) # Not used directly below, but available
+                # ...
 
-                if last_price <= 0: # Basic sanity check
-                    logging.warning(f"[{coin_symbol}] Invalid last price ({last_price}), skipping.")
-                    skipped_coins['invalid_price'] += 1
-                    continue
-
-                # --- Volatility Analysis ---
-                volatility = ((high_24h - low_24h) / last_price * 100) if last_price > 0 else 0
+                # --- Use basic info if available, recalculate if needed ---
+                volatility = ((float(high_24h_str) - float(low_24h_str)) / last_price * 100) if last_price > 0 and high_24h_str and low_24h_str else (basic_info.get('volatility_percent') if basic_info else 0)
                 zone, strategy = determine_volatility_zone(volatility)
-
-                # --- Order Book and Spread ---
-                orderbook_data = fetch_orderbook(symbol_usdt)
-                bids = asks = None
-                best_bid = best_ask = spread_percent = None
-                orderbook_thin = True # Assume thin until proven otherwise
-
-                if orderbook_data and orderbook_data.get('result'):
-                    # Bybit V5 format: result['b'] = bids [price, size], result['a'] = asks [price, size]
-                    bids_raw = orderbook_data['result'].get('b', [])
-                    asks_raw = orderbook_data['result'].get('a', [])
-
-                    if bids_raw and asks_raw:
-                        best_bid = float(bids_raw[0][0])
-                        best_ask = float(asks_raw[0][0])
-                        bids = [{"price": float(p[0]), "size": float(p[1])} for p in bids_raw[:5]] # Top 5
-                        asks = [{"price": float(p[0]), "size": float(p[1])} for p in asks_raw[:5]] # Top 5
-
-                        if best_ask > best_bid > 0:
-                             spread_percent = (best_ask - best_bid) / last_price * 100
-                             # Define 'thin' based on spread (adjust threshold as needed)
-                             orderbook_thin = spread_percent > 1.5 # Example threshold
-                        else:
-                             logging.warning(f"[{coin_symbol}] Invalid best bid/ask ({best_bid}/{best_ask}), cannot calculate spread.")
-                             skipped_coins['invalid_orderbook'] += 1
-                    else:
-                         logging.warning(f"[{coin_symbol}] Empty bids or asks in orderbook data.")
-                         skipped_coins['empty_orderbook'] += 1
-                else:
-                     logging.warning(f"[{coin_symbol}] Failed to fetch or parse orderbook.")
-                     skipped_coins['fetch_orderbook_failed'] += 1
+                spread_percent = basic_info.get('bid_ask_spread_percent') if basic_info else None # Reuse spread if available, or fetch again if needed/critical
 
 
-                # --- Timeframe Analysis ---
-                mtf_confirm, tf_status = analyze_timeframes(coin_symbol, last_price) # Pass base symbol
-
-                # --- Candle Data for Indicators ---
-                # Fetch 1h candles (again - potential optimization: reuse from analyze_timeframes if structure allows)
-                logging.warning(f"[{coin_symbol}] Fetching 1h candles again for RSI/Volume. Consider optimization.")
-                candles_1h_data = fetch_candles(symbol_usdt, "60")
-                closes = []
-                volumes = []
-                if candles_1h_data and candles_1h_data.get('result', {}).get('list'):
-                    candle_list = candles_1h_data['result']['list']
-                    closes = [float(c[4]) for c in candle_list if len(c) > 4]
-                    volumes = [float(c[5]) for c in candle_list if len(c) > 5]
-                else:
-                    logging.warning(f"[{coin_symbol}] Could not get 1h candle data for indicators.")
-                    # Decide how to handle - skip coin or proceed with missing indicators?
-                    # Skipping for now as indicators are crucial
-                    skipped_coins['candle_data_missing'] += 1
-                    # continue # Optional: skip if candles are essential
-
-                # --- Indicator Calculations ---
-                rsi = calculate_rsi(closes) if closes else None
-                volume_divergence = detect_volume_divergence(volumes) if volumes else None # False if not enough data
-                momentum_health = calculate_momentum_health(rsi, volume_divergence)
-                cg_metrics = fetch_coingecko_metrics(coin_symbol)
-                cg_sentiment_percentage = cg_metrics.get('cg_sentiment_votes_up_percentage') # Raw sentiment %
-                cg_community_score = cg_metrics.get('cg_community_score')
-                cg_developer_score = cg_metrics.get('cg_developer_score')
-                cg_public_interest_score = cg_metrics.get('cg_public_interest_score')
-
-
-                SPREAD_THRESHOLD = 1.5 # Example threshold
+                # --- <<< EARLY FILTERS (Can use basic info or fresh data) >>> ---
+                SPREAD_THRESHOLD = 1.5
                 ALLOWED_VOLATILITY_ZONES = ["Very Low Volatility", "Low Volatility", "Medium Volatility"]
+                if spread_percent is None: # Optionally fetch orderbook here if essential and missing
+                     orderbook_data = fetch_orderbook(symbol_usdt)
+                     # orderbook_data = fetch_orderbook(symbol_usdt) ... calculate spread ...
+                     pass # For now, skip if spread wasn't fetched in basic
 
-                # --- Initial Filtering (Example: Apply basic filters early) ---
-                if spread_percent is None or spread_percent > SPREAD_THRESHOLD:
-                    logging.info(f"[{coin_symbol}] Skipping further analysis due to high/missing spread: {spread_percent}")
-                    skipped_coins['high_spread_early'] += 1
-                    continue 
+                if spread_percent is not None and spread_percent > SPREAD_THRESHOLD:
+                    # logging.info(f"[{coin_symbol}] Skipping full analysis due to high/missing spread: {spread_percent}")
+                    # skipped_coins['high_spread_full'] += 1
+                    continue # Skip silently in full run if basic info already showed high spread
 
                 if zone not in ALLOWED_VOLATILITY_ZONES:
-                     logging.info(f"[{coin_symbol}] Skipping further analysis due to volatility zone: {zone}")
-                     skipped_coins['wrong_volatility_early'] += 1
-                     continue
-                # Example: Filter based on volatility zone if desired earlier
-                # if zone not in ["Very Low Volatility", "Low Volatility"]:
-                #     logging.info(f"[{coin_symbol}] Skipping due to volatility zone: {zone}")
-                #     skipped_coins['wrong_volatility'] += 1
-                #     continue
-                logging.info(f"[{coin_symbol}] Passed initial filters (Spread: {spread_percent:.4f}%, Zone: {zone}). Proceeding with deeper analysis.")
+                     # logging.info(f"[{coin_symbol}] Skipping full analysis due to volatility zone: {zone}")
+                     # skipped_coins['wrong_volatility_full'] += 1
+                     continue # Skip silently
 
-                # --- Social & News Metrics ---
-                # Note: Uses CoinGecko proxy, NOT real Santiment
+                # --- Passed Filters - Proceed with Intensive Analysis ---
+                logging.debug(f"[{coin_symbol}] Passed filters. Performing full analysis...")
+
+                # --- Timeframe, Candles, Indicators (as before) ---
+                mtf_confirm, tf_status = analyze_timeframes(coin_symbol, last_price)
+                # ... fetch 1h candles, calc closes/volumes ...
+                rsi = calculate_rsi(closes) if closes else None
+                # ... calc volume_divergence, momentum_health ...
+                volume_divergence = detect_volume_divergence(volumes) if volumes else None # False if not enough data
+                momentum_health = calculate_momentum_health(rsi, volume_divergence)
+
+
+
+                # --- <<< CALL COINGECKO ONLY HERE >>> ---
+                logging.info(f"[{coin_symbol}] Fetching CoinGecko metrics (cache check)...")
                 cg_metrics = fetch_coingecko_metrics(coin_symbol)
-                cg_sentiment_percentage = cg_metrics.get('cg_sentiment_votes_up_percentage') # Raw sentiment %
-                cg_community_score = cg_metrics.get('cg_community_score')
-                cg_developer_score = cg_metrics.get('cg_developer_score')
-                cg_public_interest_score = cg_metrics.get('cg_public_interest_score')
+                cg_derived_whale_alert = cg_metrics.get('cg_derived_whale_alert', False)
+                cg_derived_social_spike = cg_metrics.get('cg_derived_social_dominance_spike', False)
+                cg_derived_address_spike = cg_metrics.get('cg_derived_active_address_spike', False)
 
-                # Basic news sentiment from CryptoPanic titles
+# Calls CG API (uses cache)
+
+                # Extract CG metrics (as before)
+                # ... cg_sentiment_percentage = cg_metrics.get(...) ...
+
+                # --- Use Reddit mentions (fetched once per cycle) ---
+                mentions = reddit_mentions.get(coin_symbol, 0)
+
+                # --- News sentiment (as before) ---
+                # ... coin_news_sentiment = ...
                 coin_news_sentiment = "neutral"
                 if cryptopanic_news:
                     positive_mentions = sum(
@@ -359,126 +383,46 @@ def update_data():
                          coin_news_sentiment = "negative"
 
 
-                # Placeholder for BTC inflow - needs a real data source
-                btc_inflow_spike = False
-
-                # --- Scoring ---
+                # --- Scoring (as before, using all available metrics) ---
                 breakout_score = calculate_breakout_score(
                     rsi=rsi,
-                    volume_rising=not volume_divergence if volume_divergence is not None else False,
-                    # cg_derived_whale_alert=cg_derived_whale_alert, # REMOVED OLD ARGUMENT
+                    volume_rising=not volume_divergence if volume_divergence is not None else False, # Need volume trend, not just divergence
+                    cg_derived_whale_alert=cg_derived_whale_alert, # Use renamed key
                     news_sentiment=coin_news_sentiment,
                     spread_percent=spread_percent,
                     btc_inflow_spike=btc_inflow_spike,
                     orderbook_thin=orderbook_thin,
                     momentum_health=momentum_health,
-                    # --- ADD NEW ARGUMENTS ---
-                    cg_sentiment_percentage=cg_sentiment_percentage,
-                    cg_community_score=cg_community_score,
-                    cg_developer_score=cg_developer_score,
-                    cg_public_interest_score=cg_public_interest_score
                 )
+                # logging.info(...) # Maybe log less verbosely here
 
-
-                # --- Estimates & Signals ---
-                tp_estimate = estimate_time_to_tp(breakout_score, zone)
-                mentions = reddit_mentions.get(coin_symbol, 0)
-                # Refined Signal Logic (Example)
-                signal = "NEUTRAL"
-                if breakout_score >= 5 and mtf_confirm and fear_greed_score > 40 and momentum_health == "strong": # Example Threshold Adjustment
-                    signal = "BUY"
-                elif breakout_score <= 1 or fear_greed_score < 30 or momentum_health == "weak": # Example Threshold Adjustment
-                    signal = "SELL/AVOID"
-                else:
-                    signal = "CAUTION"
-
-
-                # Simplified scalp levels (adjust percentages as needed)
-                scalp_tp = round(last_price * 1.008, 4) # ~0.8% gain
-                scalp_sl = round(last_price * 0.992, 4) # ~0.8% risk
-
-                # --- Assemble Coin Data ---
-                coin_data = {
-                    "symbol": coin_symbol,
-                    "symbol_usdt": symbol_usdt,
-                    "current_price": round(last_price, 4),
-                    # ... other existing fields ...
-                    "fear_greed_context": f"{fear_greed_score} ({fear_greed_class})",
-                    "signal": signal,
-                    "bid_ask_spread_percent": round(spread_percent, 4) if spread_percent is not None else None,
-                    "orderbook_snapshot": {
-                         "top_5_bids": bids,
-                         "top_5_asks": asks,
-                         "is_thin": orderbook_thin
-                    },
-                    "multi_timeframe_confirmation": mtf_confirm,
-                    "timeframes_status": tf_status,
-                    "sector": sector_lookup.get(coin_symbol.upper(), "Unknown"),
-                    "news_sentiment": coin_news_sentiment,
-
-                    # --- REMOVE OLD DERIVED METRICS ---
-                    # "cg_derived_social_dominance_spike": cg_derived_social_spike,
-                    # "cg_derived_active_address_spike": cg_derived_address_spike,
-                    # "cg_derived_whale_alert": cg_derived_whale_alert,
-
-                    # --- ADD NEW RAW COINGECKO METRICS ---
-                    "cg_metrics_source": "CoinGecko API Proxy", # Clarify source
-                    "cg_slug": cg_metrics.get('cg_slug'),
-                    "cg_sentiment_votes_up_percentage": cg_sentiment_percentage,
-                    "cg_community_score": cg_community_score,
-                    "cg_developer_score": cg_developer_score,
-                    "cg_public_interest_score": cg_public_interest_score,
-                    # Add others fetched if desired (e.g., 'cg_twitter_followers')
-
-                    "btc_inflow_spike": btc_inflow_spike,
-                    "rsi_1h": rsi,
-                    "volume_divergence_1h": volume_divergence,
-                    "momentum_health": momentum_health,
-                    "breakout_score": breakout_score,
-                    "time_estimate_to_tp": tp_estimate,
-                    "example_scalp_levels": {
-                        "entry_approx": round(last_price, 4),
-                        "tp": scalp_tp,
-                        "sl": stop_loss, # Typo fixed: stop_loss
-                    },
-                    "buy_window_note": get_buy_window()
-                }
-                processed_coins_data.append(coin_data)
-                spread_str = f"{spread_percent:.4f}%" if spread_percent is not None else "N/A"
-                rsi_str = f"{rsi:.2f}" if rsi is not None else "N/A"
-                logging.info(f"✅ Processed: {coin_symbol} (Score: {breakout_score}, Signal: {signal}, Spread: {spread_str}, RSI: {rsi_str})")
-            except (ValueError, TypeError) as e:
-                 logging.error(f"[{coin_symbol}] Error converting data (price/vol/etc.): {e}. Skipping coin.")
-                 skipped_coins['data_conversion_error'] += 1
             except Exception as e:
-                logging.error(f"[{coin_symbol}] Unexpected error during processing: {e}", exc_info=True) # Log traceback
-                skipped_coins['unexpected_error'] += 1
-
+                logging.error(f"[{coin_symbol}] Unexpected error during FULL processing: {e}", exc_info=True)
+                skipped_coins['unexpected_error_full'] += 1
 
         # --- Update Global State ---
-        sentiment_data.clear()
+        sentiment_data.clear() # Clear previous full data
         sentiment_data["timestamp"] = datetime.now().isoformat()
         sentiment_data["fear_greed"] = {"score": fear_greed_score, "classification": fear_greed_class}
-        sentiment_data["processed_coins"] = processed_coins_data # Use the list built in the loop
-        sentiment_data["update_summary"] = {
-            "total_potential_coins": len(potential_coins),
-            "successfully_processed": len(processed_coins_data),
-            "skipped_counts": dict(skipped_coins)
+        sentiment_data["processed_coins"] = processed_coins_data # Store the list of fully processed coins
+        sentiment_data["update_summary"] = { # Add summary
+             "total_potential_coins": len(potential_coins),
+             "successfully_processed_full": len(processed_coins_data),
+             "skipped_counts": dict(skipped_coins)
         }
+        last_full_update_time = datetime.now()
+        logging.info(f"✅ FULL data update cycle finished. Processed {len(processed_coins_data)} coins fully. Skipped: {dict(skipped_coins)}")
 
-        last_update_time = datetime.now()
-        logging.info(f"✅ Data update cycle finished. Processed {len(processed_coins_data)} coins. Skipped: {dict(skipped_coins)}")
-
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Network error during update cycle: {e}")
     except Exception as e:
-        logging.error(f"Critical error during update_data execution: {e}", exc_info=True)
+        logging.error(f"Critical error during full update_data execution: {e}", exc_info=True)
 
 
-# --- Initialize Scheduler ---
-scheduler = BackgroundScheduler(daemon=True) # Use daemon thread
-# Run every 30 minutes, starting after the first manual run completes
-scheduler.add_job(update_data, 'interval', minutes=30, next_run_time=datetime.now())
+# --- Adjust Scheduler ---
+scheduler = BackgroundScheduler(daemon=True)
+# Schedule the FULL update less frequently
+scheduler.add_job(update_data, 'interval', minutes=60, next_run_time=datetime.now() + timedelta(minutes=1)) # Run 1 min after start
+# Optionally schedule basic data refresh more often if needed, but maybe not necessary
+# scheduler.add_job(fetch_and_process_basic_data, 'interval', minutes=15)
 scheduler.start()
 
 # --- Flask Routes ---
@@ -589,12 +533,12 @@ def index():
 if __name__ == "__main__":
     # Perform initial data fetch before starting the web server
     logging.info("Attempting initial data fetch (SKIPPING for debugging)...") # Indicate skip
-    # try:
-    #     # update_data() # <<< TEMPORARILY COMMENT THIS OUT
-    #       logging.info("Initial data fetch complete.")
-    # except Exception as e:
-    #     # Log critically if it fails, but allow server to attempt start
-    #     logging.critical(f"❗ Failed during initial update_data(): {e}", exc_info=True)
+    try:
+        update_data() # <<< TEMPORARILY COMMENT THIS OUT
+        logging.info("Initial data fetch complete.")
+    except Exception as e:
+    #     Log critically if it fails, but allow server to attempt start
+        logging.critical(f"❗ Failed during initial update_data(): {e}", exc_info=True)
 
     # Run the Flask app
     port = int(os.environ.get("PORT", 5000))
