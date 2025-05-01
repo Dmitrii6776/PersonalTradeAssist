@@ -250,7 +250,7 @@ def fetch_and_process_basic_data():
                     "volatility_percent": round(volatility, 2),
                     "volatility_zone": zone,
                     "strategy_suggestion": strategy,
-                    "bid_ask_spread_percent": round(spread_percent, 4) if spread_percent is not None else None,
+                    "bid_ask_spread_percent": None,
                     "timestamp": datetime.now().isoformat() # Timestamp of this basic fetch
                 }
             except Exception as e:
@@ -376,9 +376,9 @@ def update_data():
                          except (ValueError, TypeError, IndexError):
                               logging.warning(f"[{coin_symbol}] Error processing order book data in full update.")
 
-                # --- Spread: Use basic, don't refetch here unless necessary ---
-               # spread_percent = basic_info.get('bid_ask_spread_percent') if basic_info else None
-               # orderbook_thin = spread_percent > 1.5 if spread_percent is not None else True # Assume thin if spread unknown
+                
+                #spread_percent = basic_info.get('bid_ask_spread_percent') if basic_info else None
+                #orderbook_thin = spread_percent > 1.5 if spread_percent is not None else True # Assume thin if spread unknown
 
                 # --- <<< EARLY FILTERS >>> ---
                 SPREAD_THRESHOLD = 1.5
