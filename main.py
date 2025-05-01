@@ -20,15 +20,14 @@ try:
     from modules.bybit_api import fetch_market_data, fetch_orderbook, fetch_candles
     from modules.coingecko_api import fetch_coingecko_market_data, fetch_coingecko_categories
     from modules.cryptopanic_api import fetch_cryptopanic_news
-    #from modules.santiment_api import fetch_social_metrics # Note: Uses CoinGecko, see module comments
-    # from modules.santiment_api import fetch_social_metrics # Old
-    from modules.coingecko_proxy import fetch_coingecko_metrics # New
+    # from modules.santiment_api import fetch_social_metrics # OLD IMPORT - REMOVE/COMMENT OUT
+    from modules.coingecko_proxy import fetch_coingecko_metrics # NEW IMPORT
     from modules.momentum_analysis import calculate_rsi, detect_volume_divergence, calculate_momentum_health
     from modules.breakout_scoring import calculate_breakout_score
     from modules.buy_timing_logic import get_buy_window
+    import numpy as np # Make sure numpy is imported if used in EMA calc
 except ImportError as e:
     logging.error(f"Error importing modules. Make sure they are in a 'modules' directory: {e}")
-    # Optionally exit or handle this critical error
     exit(1)
 
 
@@ -306,6 +305,11 @@ def update_data():
                 rsi = calculate_rsi(closes) if closes else None
                 volume_divergence = detect_volume_divergence(volumes) if volumes else None # False if not enough data
                 momentum_health = calculate_momentum_health(rsi, volume_divergence)
+                cg_metrics = fetch_coingecko_metrics(coin_symbol)
+                cg_sentiment_percentage = cg_metrics.get('cg_sentiment_votes_up_percentage') # Raw sentiment %
+                cg_community_score = cg_metrics.get('cg_community_score')
+                cg_developer_score = cg_metrics.get('cg_developer_score')
+                cg_public_interest_score = cg_metrics.get('cg_public_interest_score')
 
                 # --- Initial Filtering (Example: Apply basic filters early) ---
                 if spread_percent is not None and spread_percent > 1.5:
@@ -350,23 +354,29 @@ def update_data():
                 # --- Scoring ---
                 breakout_score = calculate_breakout_score(
                     rsi=rsi,
-                    volume_rising=not volume_divergence if volume_divergence is not None else False, # Need volume trend, not just divergence
-                    cg_derived_whale_alert=cg_derived_whale_alert, # Use renamed key
+                    volume_rising=not volume_divergence if volume_divergence is not None else False,
+                    # cg_derived_whale_alert=cg_derived_whale_alert, # REMOVED OLD ARGUMENT
                     news_sentiment=coin_news_sentiment,
                     spread_percent=spread_percent,
                     btc_inflow_spike=btc_inflow_spike,
                     orderbook_thin=orderbook_thin,
                     momentum_health=momentum_health,
+                    # --- ADD NEW ARGUMENTS ---
+                    cg_sentiment_percentage=cg_sentiment_percentage,
+                    cg_community_score=cg_community_score,
+                    cg_developer_score=cg_developer_score,
+                    cg_public_interest_score=cg_public_interest_score
                 )
+
 
                 # --- Estimates & Signals ---
                 tp_estimate = estimate_time_to_tp(breakout_score, zone)
                 mentions = reddit_mentions.get(coin_symbol, 0)
                 # Refined Signal Logic (Example)
                 signal = "NEUTRAL"
-                if breakout_score >= 6 and mtf_confirm and fear_greed_score > 40 and momentum_health == "strong":
+                if breakout_score >= 5 and mtf_confirm and fear_greed_score > 40 and momentum_health == "strong": # Example Threshold Adjustment
                     signal = "BUY"
-                elif breakout_score <= 2 or fear_greed_score < 30 or momentum_health == "weak":
+                elif breakout_score <= 1 or fear_greed_score < 30 or momentum_health == "weak": # Example Threshold Adjustment
                     signal = "SELL/AVOID"
                 else:
                     signal = "CAUTION"
@@ -381,45 +391,51 @@ def update_data():
                     "symbol": coin_symbol,
                     "symbol_usdt": symbol_usdt,
                     "current_price": round(last_price, 4),
-                    "price_source": "Bybit Spot API",
-                    "volatility_percent": round(volatility, 2),
-                    "volatility_zone": zone,
-                    "strategy_suggestion": strategy, # Renamed from strategy_description
-                    "reddit_mentions": mentions,
-                    "fear_greed_context": f"{fear_greed_score} ({fear_greed_class})", # Added global context
+                    # ... other existing fields ...
+                    "fear_greed_context": f"{fear_greed_score} ({fear_greed_class})",
                     "signal": signal,
                     "bid_ask_spread_percent": round(spread_percent, 4) if spread_percent is not None else None,
-                    "orderbook_snapshot": { # Nested orderbook data
+                    "orderbook_snapshot": {
                          "top_5_bids": bids,
                          "top_5_asks": asks,
-                         "is_thin": orderbook_thin # Flag based on spread threshold
+                         "is_thin": orderbook_thin
                     },
                     "multi_timeframe_confirmation": mtf_confirm,
                     "timeframes_status": tf_status,
-                    "sector": sector_lookup.get(coin_symbol.upper(), "Unknown"), # Use upper for lookup consistency
-                    "news_sentiment": coin_news_sentiment, # Derived from CryptoPanic votes
-                    "cg_derived_social_dominance_spike": cg_derived_social_spike, # Renamed key
-                    "cg_derived_active_address_spike": cg_derived_address_spike, # Renamed key
-                    "cg_derived_whale_alert": cg_derived_whale_alert, # Renamed key
-                    "btc_inflow_spike": btc_inflow_spike, # Placeholder
-                    "rsi_1h": rsi, # Be specific about timeframe
-                    "volume_divergence_1h": volume_divergence, # Be specific
+                    "sector": sector_lookup.get(coin_symbol.upper(), "Unknown"),
+                    "news_sentiment": coin_news_sentiment,
+
+                    # --- REMOVE OLD DERIVED METRICS ---
+                    # "cg_derived_social_dominance_spike": cg_derived_social_spike,
+                    # "cg_derived_active_address_spike": cg_derived_address_spike,
+                    # "cg_derived_whale_alert": cg_derived_whale_alert,
+
+                    # --- ADD NEW RAW COINGECKO METRICS ---
+                    "cg_metrics_source": "CoinGecko API Proxy", # Clarify source
+                    "cg_slug": cg_metrics.get('cg_slug'),
+                    "cg_sentiment_votes_up_percentage": cg_sentiment_percentage,
+                    "cg_community_score": cg_community_score,
+                    "cg_developer_score": cg_developer_score,
+                    "cg_public_interest_score": cg_public_interest_score,
+                    # Add others fetched if desired (e.g., 'cg_twitter_followers')
+
+                    "btc_inflow_spike": btc_inflow_spike,
+                    "rsi_1h": rsi,
+                    "volume_divergence_1h": volume_divergence,
                     "momentum_health": momentum_health,
                     "breakout_score": breakout_score,
                     "time_estimate_to_tp": tp_estimate,
-                    "example_scalp_levels": { # Nested scalp levels
+                    "example_scalp_levels": {
                         "entry_approx": round(last_price, 4),
                         "tp": scalp_tp,
-                        "sl": scalp_sl,
+                        "sl": slop_loss, # Typo fixed: stop_loss
                     },
                     "buy_window_note": get_buy_window()
                 }
                 processed_coins_data.append(coin_data)
                 spread_str = f"{spread_percent:.4f}%" if spread_percent is not None else "N/A"
-                rsi_str = f"{rsi:.2f}" if rsi is not None else "N/A" # Also make RSI safe for logging if needed elsewhere
+                rsi_str = f"{rsi:.2f}" if rsi is not None else "N/A"
                 logging.info(f"✅ Processed: {coin_symbol} (Score: {breakout_score}, Signal: {signal}, Spread: {spread_str}, RSI: {rsi_str})")
-# ^^^ Modified to show safe spread and added safe RSI for context
-
             except (ValueError, TypeError) as e:
                  logging.error(f"[{coin_symbol}] Error converting data (price/vol/etc.): {e}. Skipping coin.")
                  skipped_coins['data_conversion_error'] += 1
