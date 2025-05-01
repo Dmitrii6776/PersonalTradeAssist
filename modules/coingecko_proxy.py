@@ -210,7 +210,7 @@ def fetch_coingecko_metrics(symbol):
     # Handle specific HTTP errors like 429 Rate Limit
         if e.response is not None and e.response.status_code == 429:
          # --- REMOVE THE time.sleep(60) ---
-             log.error(f"[CoinGecko Proxy] RATE LIMITED (429) for {symbol} (slug: {coin_id}). Increase COINGECKO_DELAY or reduce call frequency further. Returning empty. Error: {e}")
+            log.error(f"[CoinGecko Proxy] RATE LIMITED (429) for {symbol} (slug: {coin_id}). Increase COINGECKO_DELAY or reduce call frequency further. Returning empty. Error: {e}")
          # Just log and return immediately to avoid hanging the worker
             return {}
          # --- END CHANGE ---
