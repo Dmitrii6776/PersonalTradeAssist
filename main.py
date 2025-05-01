@@ -428,16 +428,18 @@ scheduler.start()
 # --- Flask Routes ---
 @app.route("/sentiment")
 def get_sentiment():
-    """Returns the latest aggregated sentiment and coin analysis data."""
-    if not sentiment_data:
-         return jsonify({"error": "Data is not available yet. Please try again later."}), 503
+    """Returns the latest aggregated sentiment and coin analysis data (fully processed)."""
+    if not sentiment_data or not sentiment_data.get("processed_coins"): # Check for fully processed coins
+         # Optionally merge basic data here if needed for partial response
+         return jsonify({"warning": "Full sentiment data is not available yet. Initializing or first scheduled run pending.",
+                         "timestamp": last_full_update_time.isoformat() if last_full_update_time else None}), 404 # Use 404 or 503
     return jsonify(sentiment_data)
-
+    
 @app.route("/scalp-sentiment")
 def get_scalp_sentiment():
-    """Filters sentiment data for potential scalp opportunities based on strict criteria."""
-    if not sentiment_data or "processed_coins" not in sentiment_data:
-         return jsonify({"error": "Data is not available yet. Please try again later."}), 503
+    """Filters fully processed sentiment data for potential scalp opportunities."""
+    if not sentiment_data or not sentiment_data.get("processed_coins"):
+         return jsonify({"error": "Full analysis data is not available yet. Please try again later."}), 503
 
     filtered_coins = []
     original_coins = sentiment_data.get("processed_coins", [])
@@ -531,21 +533,18 @@ def index():
 
 # --- Main Execution ---
 if __name__ == "__main__":
-    # Perform initial data fetch before starting the web server
-    logging.info("Attempting initial data fetch (SKIPPING for debugging)...") # Indicate skip
+    logging.info("Performing initial BASIC data fetch before starting server...")
     try:
-        update_data() # <<< TEMPORARILY COMMENT THIS OUT
-        logging.info("Initial data fetch complete.")
+        fetch_and_process_basic_data() # <<< CALL THE BASIC FUNCTION AT STARTUP
+        logging.info("Initial BASIC data fetch complete.")
     except Exception as e:
-    #     Log critically if it fails, but allow server to attempt start
-        logging.critical(f"❗ Failed during initial update_data(): {e}", exc_info=True)
+        logging.critical(f"❗ Failed during initial basic data fetch: {e}", exc_info=True)
+        # Decide if you want to exit
 
     # Run the Flask app
     port = int(os.environ.get("PORT", 5000))
     logging.info(f"🚀 Starting Flask server on host 0.0.0.0 port {port}")
-    # Use waitress or gunicorn in production instead of Flask's development server
     try:
         app.run(host="0.0.0.0", port=port)
     except Exception as e:
          logging.critical(f"❗ Flask server failed to start: {e}", exc_info=True)
-         # Make sure errors during app.run are also logged
