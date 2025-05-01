@@ -116,6 +116,7 @@ def update_data():
     try:
         market_data = fetch_market_data()
         trending_coins = [s.replace("USDT", "") for s in market_data.keys() if s.endswith("USDT") and market_data[s].get("high", 0) > 0 and market_data[s].get("low", 0) > 0]
+        print("tranding coins list", trending_coins)
         fear_greed_score, fear_greed_class = fetch_fear_greed_index()
         reddit_mentions = fetch_reddit_mentions(trending_coins)
         coingecko_markets = fetch_coingecko_market_data()
@@ -131,10 +132,11 @@ def update_data():
 
         for coin in trending_coins:
             market = market_data.get(coin + "USDT", None)
+            print("✅ Candidate:", market)
             if not market:
                 continue
 
-            print("✅ Candidate:", coin)
+            
 
             last_price = market['last']
             high_24h = market_data[s].get("high", 0)
@@ -188,6 +190,7 @@ def update_data():
             )
 
             tp_estimate = estimate_time_to_tp(breakout_score, zone)
+            print(f"🔍 Checking {symbol}: breakout={breakout_score}, spread={spread}, rsi={rsi}, confirm_15m={confirm_15m}, confirm_1h={confirm_1h}")
             
 
             sentiment_data["trending_coins"].append({
