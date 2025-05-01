@@ -9,7 +9,7 @@ from threading import Lock, Timer
 COINGECKO_API_BASE = "https://api.coingecko.com/api/v3"
 # Delay between CoinGecko API calls (seconds) - crucial for free tier
 # CoinGecko free tier limit is roughly 10-30 calls/minute. Be conservative.
-COINGECKO_DELAY = 3.0
+COINGECKO_DELAY = 6.0
 # How often to refresh the coin list cache (seconds)
 CACHE_REFRESH_INTERVAL = 6 * 60 * 60 # 6 hours
 
