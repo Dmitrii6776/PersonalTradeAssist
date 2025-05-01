@@ -543,9 +543,9 @@ app.route("/sentiment")
 def get_sentiment():
     """Returns the latest aggregated sentiment and coin analysis data (fully processed)."""
     if not sentiment_data or not sentiment_data.get("processed_coins"):
-         if not sentiment_data or not sentiment_data.get("processed_coins"):
+        if not sentiment_data or not sentiment_data.get("processed_coins"):
          # Returns the 404 status code
-         return jsonify({"warning": "Full sentiment data is not available yet. Initializing or first scheduled run pending.",
+        return jsonify({"warning": "Full sentiment data is not available yet. Initializing or first scheduled run pending.",
                          "timestamp": last_full_update_time.isoformat() if last_full_update_time else None}), 404
     return jsonify(sentiment_data)
 
