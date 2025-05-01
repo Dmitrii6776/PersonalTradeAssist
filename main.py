@@ -618,16 +618,17 @@ def index():
 if __name__ == "__main__":
     logging.info("Performing initial BASIC data fetch before starting server...")
     try:
-        fetch_and_process_basic_data() # <<< CALL THE BASIC FUNCTION AT STARTUP
+        fetch_and_process_basic_data()
         logging.info("Initial BASIC data fetch complete.")
     except Exception as e:
         logging.critical(f"❗ Failed during initial basic data fetch: {e}", exc_info=True)
-        # Decide if you want to exit
 
-    # Run the Flask app
     port = int(os.environ.get("PORT", 5000))
     logging.info(f"🚀 Starting Flask server on host 0.0.0.0 port {port}")
     try:
-        app.run(host="0.0.0.0", port=port)
+        # Consider using a production server like waitress or gunicorn
+        # from waitress import serve
+        # serve(app, host='0.0.0.0', port=port)
+        app.run(host="0.0.0.0", port=port) # Development server
     except Exception as e:
-         logging.critical(f"❗ Flask server failed to start: {e}", exc_info=True)
+         logging.critical(f"❗ Flask server failed to start or crashed: {e}", exc_info=True)
