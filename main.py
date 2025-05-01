@@ -429,7 +429,7 @@ def update_data():
                     "example_scalp_levels": {
                         "entry_approx": round(last_price, 4),
                         "tp": scalp_tp,
-                        "sl": slop_loss, # Typo fixed: stop_loss
+                        "sl": stop_loss, # Typo fixed: stop_loss
                     },
                     "buy_window_note": get_buy_window()
                 }
