@@ -413,7 +413,10 @@ def update_data():
                     "buy_window_note": get_buy_window()
                 }
                 processed_coins_data.append(coin_data)
-                logging.info(f"✅ Processed: {coin_symbol} (Score: {breakout_score}, Signal: {signal}, Spread: {spread_percent:.4f}%)")
+                spread_str = f"{spread_percent:.4f}%" if spread_percent is not None else "N/A"
+                rsi_str = f"{rsi:.2f}" if rsi is not None else "N/A" # Also make RSI safe for logging if needed elsewhere
+                logging.info(f"✅ Processed: {coin_symbol} (Score: {breakout_score}, Signal: {signal}, Spread: {spread_str}, RSI: {rsi_str})")
+# ^^^ Modified to show safe spread and added safe RSI for context
 
             except (ValueError, TypeError) as e:
                  logging.error(f"[{coin_symbol}] Error converting data (price/vol/etc.): {e}. Skipping coin.")
