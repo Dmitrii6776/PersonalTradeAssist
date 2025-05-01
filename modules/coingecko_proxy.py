@@ -207,16 +207,20 @@ def fetch_coingecko_metrics(symbol):
         return metrics
 
     except requests.exceptions.HTTPError as e:
-        # Handle specific HTTP errors like 429 Rate Limit
-        if e.response is not None and e.response.status_code == 429:
-            backoff_time = 60
-            log.error(f"[CoinGecko Proxy] RATE LIMITED (429) for {symbol} (slug: {coin_id}). Increase COINGECKO_DELAY or reduce call frequency. Error: {e}")
-             # Consider adding a longer dynamic delay or circuit breaker here
-        elif e.response is not None and e.response.status_code == 404:
-            log.warning(f"[CoinGecko Proxy] Coin not found (404) for slug: {coin_id} (Symbol: {symbol}). Error: {e}")
-        else:
-            log.error(f"[CoinGecko Proxy] HTTP error for {symbol} (slug: {coin_id}): {e}")
-        return {} # Return empty dict on handled HTTP errorsdict on handled HTTP errors
+    # Handle specific HTTP errors like 429 Rate Limit
+    if e.response is not None and e.response.status_code == 429:
+         # --- REMOVE THE time.sleep(60) ---
+         log.error(f"[CoinGecko Proxy] RATE LIMITED (429) for {symbol} (slug: {coin_id}). Increase COINGECKO_DELAY or reduce call frequency further. Returning empty. Error: {e}")
+         # Just log and return immediately to avoid hanging the worker
+         return {}
+         # --- END CHANGE ---
+    elif e.response is not None and e.response.status_code == 404:
+         log.warning(f"[CoinGecko Proxy] Coin not found (404) for slug: {coin_id} (Symbol: {symbol}). Error: {e}")
+    else:
+         log.error(f"[CoinGecko Proxy] HTTP error for {symbol} (slug: {coin_id}): {e}")
+    return {} # Return empty dict on handled HTTP errors
+
+
     except requests.exceptions.RequestException as e:
         # Handle other network/request related errors
         log.error(f"[CoinGecko Proxy] Request error for {symbol} (slug: {coin_id}): {e}")
