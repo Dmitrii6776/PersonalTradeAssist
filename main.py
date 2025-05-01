@@ -228,19 +228,19 @@ def fetch_and_process_basic_data():
                 zone, strategy = determine_volatility_zone(volatility)
 
                 # --- Optionally fetch order book for spread (can be skipped if too slow) ---
-                spread_percent = None
-                orderbook_data = fetch_orderbook(symbol_usdt)
-                if orderbook_data and orderbook_data.get('result'):
-                     bids_raw = orderbook_data['result'].get('b', [])
-                     asks_raw = orderbook_data['result'].get('a', [])
-                     if bids_raw and asks_raw:
-                         try:
-                             best_bid = float(bids_raw[0][0])
-                             best_ask = float(asks_raw[0][0])
-                             if best_ask > best_bid > 0:
-                                  spread_percent = (best_ask - best_bid) / last_price * 100
-                         except (ValueError, TypeError, IndexError):
-                              logging.warning(f"[{coin_symbol}] Error processing order book data in basic fetch.")
+                #spread_percent = None
+                #orderbook_data = fetch_orderbook(symbol_usdt)
+                #if orderbook_data and orderbook_data.get('result'):
+                     #bids_raw = orderbook_data['result'].get('b', [])
+                     #asks_raw = orderbook_data['result'].get('a', [])
+                     #if bids_raw and asks_raw:
+                         #try:
+                            # best_bid = float(bids_raw[0][0])
+                 #           # best_ask = float(asks_raw[0][0])
+                  #           if best_ask > best_bid > 0:
+                   #               spread_percent = (best_ask - best_bid) / last_price * 100
+                    #     except (ValueError, TypeError, IndexError):
+                     #         logging.warning(f"[{coin_symbol}] Error processing order book data in basic fetch.")
                 # Store basic info
                 temp_basic_data[coin_symbol] = {
                     "symbol": coin_symbol,
@@ -293,7 +293,8 @@ def fetch_and_process_basic_data():
 def update_data():
     """Main function to fetch all data, enrich with CG/Reddit, analyze coins, and update global state."""
     global market_data, sentiment_data, last_full_update_time, basic_coin_data
-    logging.info("🚀 Starting FULL data update cycle...")
+    logging.info("🚀 Starting FULL data update cycle (incl. order books)...")
+
 
     try:
         # --- Fetch Global/Market Data ---
@@ -355,10 +356,29 @@ def update_data():
                     volatility = basic_info.get('volatility_percent')
 
                 zone, strategy = determine_volatility_zone(volatility)
+                spread_percent = None
+                
+                orderbook_thin = True # Assume thin initially
+                bids_asks = None # Store actual bids/asks if needed
+                orderbook_data = fetch_orderbook(symbol_usdt) # Fetch it now
+                if orderbook_data and orderbook_data.get('result'):
+                     bids_raw = orderbook_data['result'].get('b', [])
+                     asks_raw = orderbook_data['result'].get('a', [])
+                     if bids_raw and asks_raw:
+                         try:
+                             best_bid = float(bids_raw[0][0])
+                             best_ask = float(asks_raw[0][0])
+                             if best_ask > best_bid > 0:
+                                  spread_percent = (best_ask - best_bid) / last_price * 100
+                                  orderbook_thin = spread_percent > 1.5 # Example threshold
+                                  # Optionally store bids/asks for the final dict
+                                  # bids_asks = {'bids': bids_raw[:5], 'asks': asks_raw[:5]}
+                         except (ValueError, TypeError, IndexError):
+                              logging.warning(f"[{coin_symbol}] Error processing order book data in full update.")
 
                 # --- Spread: Use basic, don't refetch here unless necessary ---
-                spread_percent = basic_info.get('bid_ask_spread_percent') if basic_info else None
-                orderbook_thin = spread_percent > 1.5 if spread_percent is not None else True # Assume thin if spread unknown
+               # spread_percent = basic_info.get('bid_ask_spread_percent') if basic_info else None
+               # orderbook_thin = spread_percent > 1.5 if spread_percent is not None else True # Assume thin if spread unknown
 
                 # --- <<< EARLY FILTERS >>> ---
                 SPREAD_THRESHOLD = 1.5
@@ -476,6 +496,7 @@ def update_data():
                     "cg_public_interest_score": cg_public_interest_score,
                     # Placeholders / Other
                     "btc_inflow_spike": btc_inflow_spike,
+                    "bid_ask_spread_percent": round(spread_percent, 4) if spread_percent is not None else None,
                     "orderbook_snapshot": { # Regenerate if needed, or maybe store basic bids/asks earlier?
                          "top_5_bids": None, # Placeholder - fetch if needed
                          "top_5_asks": None, # Placeholder - fetch if needed
