@@ -1,22 +1,28 @@
 openapi: 3.1.0
 info:
-  title: Ultimate Bybit Spot Trading Assistant API
-  version: "1.0"
+  title: Personal Trade Assist API
+  version: "1.1" # Incremented version
   description: >
-    Real-time crypto spot market assistant using Bybit, CoinGecko, Reddit sentiment, order book spread analysis,
-    RSI momentum health scoring, whale signals, news sentiment, breakout strength, and volume divergence detection.
+    Provides crypto spot market analysis using Bybit data (tickers, order books, candles),
+    CoinGecko data (community/dev scores via proxy), basic Reddit mentions, Fear & Greed Index,
+    and internal calculations for volatility, spread, RSI, momentum, and breakout scoring.
+    Features split data loading for faster startup.
 
 servers:
-  - url: https://personaltradeassist-production.up.railway.app
+  - url: https://personaltradeassist-production.up.railway.app # Verify this URL is correct
+    description: Production Server
 
 paths:
   /sentiment:
     get:
       operationId: getSentiment
-      summary: Get trending coins with full breakout diagnostics and sentiment analysis
+      summary: Get fully processed coins with analysis, scores, and sentiment context.
+      description: >
+        Returns data only after the first full background update cycle completes.
+        Will return 404 if data is not yet available.
       responses:
         "200":
-          description: Successful response
+          description: Successful response with fully analyzed coin data.
           content:
             application/json:
               schema:
@@ -25,136 +31,129 @@ paths:
                   timestamp:
                     type: string
                     format: date-time
+                    description: Timestamp of when the full update cycle finished.
                   fear_greed:
                     type: object
                     properties:
                       score:
                         type: integer
+                        example: 65
                       classification:
                         type: string
-                  trending_coins:
+                        example: "Greed"
+                  processed_coins:
                     type: array
+                    description: List of coins that passed filters and were fully analyzed.
                     items:
-                      type: object
-                      properties:
-                        symbol:
-                          type: string
-                        current_price:
-                          type: number
-                        price_source:
-                          type: string
-                        reddit_mentions:
-                          type: integer
-                        signal:
-                          type: string
-                          enum: [BUY, CAUTION]
-                        volatility_percent:
-                          type: number
-                        volatility_zone:
-                          type: string
-                        strategy_description:
-                          type: string
-                        bid_ask_spread_percent:
-                          type: number
-                        top_5_bids:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              price:
-                                type: number
-                              size:
-                                type: number
-                        top_5_asks:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              price:
-                                type: number
-                              size:
-                                type: number
-                        multi_timeframe_confirmation:
-                          type: boolean
-                        timeframes_status:
-                          type: object
-                          additionalProperties:
-                            type: object
-                            properties:
-                              price:
-                                type: number
-                              ema20:
-                                type: number
-                              trend:
-                                type: string
-                                enum: [bullish, bearish]
-                        sector:
-                          type: string
-                        news_sentiment:
-                          type: string
-                          enum: [positive, neutral, negative]
-                        social_dominance_spike:
-                          type: boolean
-                        active_address_spike:
-                          type: boolean
-                        whale_alert:
-                          type: boolean
-                        btc_inflow_spike:
-                          type: boolean
-                        rsi:
-                          type: number
-                        volume_divergence:
-                          type: boolean
-                        momentum_health:
-                          type: string
-                        breakout_score:
-                          type: integer
-                        time_estimate_to_tp:
-                          type: string
-                        buy_window_note:
-                          type: string
-                        scalp_entry:
-                          type: number
-                        scalp_tp:
-                          type: number
-                        scalp_sl:
-                          type: number
-
-  /market:
-    get:
-      operationId: getMarket
-      summary: Get live Bybit Spot Market prices
-      responses:
-        "200":
-          description: Successful response
+                      $ref: '#/components/schemas/CoinAnalysis' # Reference reusable schema
+                  update_summary:
+                    type: object
+                    properties:
+                       total_potential_coins:
+                         type: integer
+                       successfully_processed_full:
+                         type: integer
+                       skipped_counts:
+                         type: object
+                         additionalProperties:
+                           type: integer
+                         description: Count of coins skipped at various stages.
+        "404":
+          description: Full sentiment data is not available yet (initializing or first run pending).
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  message:
+                  warning:
                     type: string
-                    example: Spot price data returned
+                  timestamp:
+                    type: string
+                    format: date-time
+                    nullable: true
 
-  /legal:
+  /scalp-sentiment:
     get:
-      operationId: getLegal
-      summary: Legal disclaimer and usage policy
+      operationId: getScalpSentiment
+      summary: Get coins filtered for potential scalp opportunities.
+      description: >
+        Applies strict filters (low spread, low volatility, MTF confirmation, score, RSI range, etc.)
+        to the fully processed sentiment data. Returns 503 if full data isn't ready.
       responses:
         "200":
-          description: Legal HTML disclaimer
+          description: Successful response with coins meeting scalp criteria.
           content:
-            text/html:
+            application/json:
               schema:
-                type: string
+                type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time
+                  strategy:
+                    type: string
+                    description: Description of the filtering strategy applied.
+                  qualified_coins:
+                    type: array
+                    description: List of coins that met the scalp filter criteria.
+                    items:
+                      $ref: '#/components/schemas/CoinAnalysis' # Reuse schema
+                  total_checked_in_full_run:
+                    type: integer
+                    description: How many fully processed coins were checked against the filter.
+                  total_qualified:
+                    type: integer
+                    description: How many coins passed the filter.
+        "503":
+          description: Full analysis data is not available yet.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /market:
+    get:
+      operationId: getMarket
+      summary: Get raw Bybit Spot Market ticker data.
+      description: Returns the latest ticker data fetched during the last basic or full update cycle.
+      responses:
+        "200":
+          description: Successful response with Bybit market data.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Timestamp of the last basic data fetch.
+                  data:
+                    type: object
+                    description: Map of symbol (e.g., BTCUSDT) to Bybit ticker object.
+                    additionalProperties:
+                      $ref: '#/components/schemas/BybitTicker' # Reference schema
+        "503":
+          description: Market data not available yet.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
 
   /health:
     get:
       operationId: getHealth
-      summary: API health check
+      summary: API health check.
       responses:
         "200":
-          description: Returns API health status
+          description: Returns API health status including data freshness.
           content:
             application/json:
               schema:
@@ -162,4 +161,258 @@ paths:
                 properties:
                   status:
                     type: string
+                    enum: [ok, initializing, stale_data]
                     example: ok
+                  message:
+                    type: string
+                    example: API is running.
+                  last_basic_update:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Timestamp of the last basic data fetch.
+                  last_full_update:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Timestamp of the last full analysis cycle completion.
+
+  /legal:
+    get:
+      operationId: getLegal
+      summary: Legal disclaimer and usage policy.
+      responses:
+        "200":
+          description: Legal HTML disclaimer.
+          content:
+            text/html:
+              schema:
+                type: string
+                format: html # Optional hint
+
+  /openapi.yaml:
+    get:
+      operationId: serveOpenapi
+      summary: Serves this OpenAPI specification file.
+      responses:
+        "200":
+          description: OpenAPI YAML specification.
+          content:
+            application/yaml: # Or text/yaml, application/x-yaml
+              schema:
+                type: string
+
+  /:
+    get:
+      operationId: getIndex
+      summary: Index route indicating API status.
+      responses:
+        "200":
+          description: Simple status message.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: ✅ PersonalTradeAssist API is running. Use /sentiment, /scalp-sentiment, /market, or /health.
+
+
+components:
+  schemas:
+    CoinAnalysis:
+      type: object
+      description: Detailed analysis results for a single cryptocurrency.
+      properties:
+        symbol:
+          type: string
+          description: Base symbol (e.g., BTC).
+        symbol_usdt:
+          type: string
+          description: Full Bybit symbol (e.g., BTCUSDT).
+        current_price:
+          type: number
+          format: float
+          description: Latest price from Bybit.
+        volume_24h:
+          type: number
+          format: float
+          nullable: true
+          description: Trading volume in the base currency over 24h (Bybit).
+        volatility_percent:
+          type: number
+          format: float
+          nullable: true
+          description: Calculated 24h volatility percentage.
+        volatility_zone:
+          type: string
+          description: Classified volatility zone.
+        strategy_suggestion:
+          type: string
+          description: Suggested strategy based on volatility zone.
+        bid_ask_spread_percent:
+          type: number
+          format: float
+          nullable: true
+          description: Calculated percentage difference between best bid and ask.
+        multi_timeframe_confirmation:
+          type: boolean
+          nullable: true # Can be null if data is missing
+          description: Whether price is above EMA20 on 15m, 1h, 4h.
+        timeframes_status:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              price:
+                type: number
+                format: float
+                nullable: true
+              ema20:
+                type: number
+                format: float
+                nullable: true
+              trend:
+                type: string
+                enum: [bullish, bearish, unknown] # Added unknown
+          description: Status of EMA20 trend on different timeframes.
+        rsi_1h:
+          type: number
+          format: float
+          nullable: true
+          description: Calculated 1-hour Relative Strength Index.
+        volume_divergence_1h:
+          type: boolean
+          nullable: true # Can be null if calculation fails
+          description: Whether volume has been decreasing over the last few 1h periods.
+        momentum_health:
+          type: string
+          enum: [strong, weak, oversold but healthy, neutral, unknown] # Added neutral, unknown
+          description: Qualitative assessment of momentum based on RSI and volume.
+        breakout_score:
+          type: integer
+          nullable: true # Can be null if underlying metrics are missing
+          description: Calculated score indicating potential breakout strength.
+        signal:
+          type: string
+          enum: [BUY, CAUTION, NEUTRAL, SELL/AVOID] # Updated enum
+          description: Generated trading signal based on analysis.
+        time_estimate_to_tp:
+          type: string
+          description: Estimated time to reach take profit based on score and volatility.
+        sector:
+          type: string
+          description: Coin category/sector (from CoinGecko).
+        reddit_mentions:
+          type: integer
+          description: Basic count of mentions in recent r/CryptoCurrency titles.
+        news_sentiment:
+          type: string
+          enum: [positive, neutral, negative]
+          description: Basic news sentiment derived from CryptoPanic votes.
+        fear_greed_context:
+          type: string
+          description: Current Fear & Greed Index score and classification.
+        buy_window_note:
+          type: string
+          description: Note about current market phase based on UTC time.
+        cg_metrics_source:
+          type: string
+          example: CoinGecko API Proxy
+        cg_slug:
+          type: string
+          nullable: true
+          description: The slug used for CoinGecko API calls.
+        cg_sentiment_votes_up_percentage:
+          type: number
+          format: float
+          nullable: true
+          description: Raw sentiment score from CoinGecko.
+        cg_community_score:
+          type: number
+          format: float
+          nullable: true
+          description: Raw community score from CoinGecko.
+        cg_developer_score:
+          type: number
+          format: float
+          nullable: true
+          description: Raw developer score from CoinGecko.
+        cg_public_interest_score:
+          type: number
+          format: float
+          nullable: true
+          description: Raw public interest score from CoinGecko.
+        btc_inflow_spike:
+          type: boolean
+          description: Placeholder for BTC exchange inflow signal.
+        orderbook_snapshot:
+          type: object
+          nullable: true
+          properties:
+            top_5_bids: # These were missing from the spec but present in python code
+              type: array
+              nullable: true
+              items:
+                type: object # Define structure if needed, or leave generic
+            top_5_asks:
+              type: array
+              nullable: true
+              items:
+                type: object # Define structure if needed, or leave generic
+            is_thin:
+              type: boolean
+              description: Flag indicating if order book spread was considered thin.
+          description: Information about the order book state.
+        example_scalp_levels:
+          type: object
+          properties:
+            entry_approx:
+              type: number
+              format: float
+            tp:
+              type: number
+              format: float
+            sl:
+              type: number
+              format: float
+          description: Example take profit and stop loss levels for a scalp trade.
+        last_full_update:
+          type: string
+          format: date-time
+          description: Timestamp when this coin's full analysis was last updated.
+        basic_update_timestamp:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of the basic data used as a base for this full update.
+
+    BybitTicker:
+      type: object
+      description: Structure of a ticker object from Bybit API v5 /market/tickers.
+      properties:
+        symbol:
+          type: string
+        lastPrice:
+          type: string # Bybit often returns prices as strings
+        highPrice24h:
+          type: string
+          nullable: true
+        lowPrice24h:
+          type: string
+          nullable: true
+        prevPrice24h:
+          type: string
+          nullable: true
+        price24hPcnt:
+          type: string # Percentage change often a string
+          nullable: true
+        volume24h:
+          type: string
+          nullable: true
+        turnover24h:
+          type: string
+          nullable: true
+        usdIndexPrice:
+          type: string
+          nullable: true
+      # Add other fields from the Bybit response as needed
+      # Example only includes common fields
