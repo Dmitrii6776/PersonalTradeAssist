@@ -324,7 +324,7 @@ def update_data():
 
                 # --- Social & News Metrics ---
                 # Note: Uses CoinGecko proxy, NOT real Santiment
-                social_metrics = fetch_social_metrics(coin_symbol)
+                cg_metrics = fetch_coingecko_metrics(coin_symbol)
                 cg_derived_whale_alert = social_metrics.get('cg_derived_whale_alert', False)
                 cg_derived_social_spike = social_metrics.get('cg_derived_social_dominance_spike', False)
                 cg_derived_address_spike = social_metrics.get('cg_derived_active_address_spike', False)
