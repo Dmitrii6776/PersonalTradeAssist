@@ -1,6 +1,7 @@
+Flask
+Flask-Cors
 requests
-beautifulsoup4
-apscheduler==3.10.4
-flask
-flask-cors
+APScheduler
 numpy
+python-dotenv
+urllib3
