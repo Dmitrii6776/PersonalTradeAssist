@@ -265,7 +265,7 @@ def fetch_and_process_basic_data():
         # Catch errors during the overall basic fetch process (e.g., market fetch fail)
         logging.error(f"Critical error during fetch_and_process_basic_data: {e}", exc_info=True)
 
-temp_basic_data[coin_symbol] = {
+        temp_basic_data[coin_symbol] = {
                     "symbol": coin_symbol,
                     "symbol_usdt": symbol_usdt,
                     "current_price": round(last_price, 4),
@@ -275,10 +275,10 @@ temp_basic_data[coin_symbol] = {
                     "strategy_suggestion": strategy,
                     "bid_ask_spread_percent": round(spread_percent, 4) if spread_percent is not None else None,
                     "timestamp": datetime.now().isoformat() # Timestamp of this basic fetch
-                }
-            except Exception as e:
+        }
+    except Exception as e:
                  # Catch errors during processing of a single coin
-                 logging.error(f"[{coin_symbol}] Error during BASIC processing for this coin: {e}", exc_info=True)
+        logging.error(f"[{coin_symbol}] Error during BASIC processing for this coin: {e}", exc_info=True)
 
         basic_coin_data = temp_basic_data # Update global basic data store
         last_basic_update_time = datetime.now()
