@@ -359,6 +359,13 @@ def update_data():
 
                 # Extract CG metrics (as before)
                 # ... cg_sentiment_percentage = cg_metrics.get(...) ...
+                cg_sentiment_percentage = cg_metrics.get('cg_sentiment_votes_up_percentage') 
+
+                cg_community_score = cg_metrics.get('cg_community_score')
+                cg_developer_score = cg_metrics.get('cg_developer_score')
+                cg_public_interest_score = cg_metrics.get('cg_public_interest_score')
+
+                btc_inflow_spike = False
 
                 # --- Use Reddit mentions (fetched once per cycle) ---
                 mentions = reddit_mentions.get(coin_symbol, 0)
