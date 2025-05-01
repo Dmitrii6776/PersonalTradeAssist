@@ -588,18 +588,20 @@ def index():
 # --- Main Execution ---
 if __name__ == "__main__":
     # Perform initial data fetch before starting the web server
-    # This makes sure data is available sooner on startup
-    logging.info("Performing initial data fetch before starting server...")
-    try:
-        update_data()
-        logging.info("Initial data fetch complete.")
-    except Exception as e:
-        logging.critical(f"❗ Failed during initial update_data(): {e}", exc_info=True)
-        # Decide if you want to exit if the initial fetch fails catastrophically
-        # exit(1)
+    logging.info("Attempting initial data fetch (SKIPPING for debugging)...") # Indicate skip
+    # try:
+    #     # update_data() # <<< TEMPORARILY COMMENT THIS OUT
+    #       logging.info("Initial data fetch complete.")
+    # except Exception as e:
+    #     # Log critically if it fails, but allow server to attempt start
+    #     logging.critical(f"❗ Failed during initial update_data(): {e}", exc_info=True)
 
     # Run the Flask app
     port = int(os.environ.get("PORT", 5000))
     logging.info(f"🚀 Starting Flask server on host 0.0.0.0 port {port}")
     # Use waitress or gunicorn in production instead of Flask's development server
-    app.run(host="0.0.0.0", port=port)
+    try:
+        app.run(host="0.0.0.0", port=port)
+    except Exception as e:
+         logging.critical(f"❗ Flask server failed to start: {e}", exc_info=True)
+         # Make sure errors during app.run are also logged
