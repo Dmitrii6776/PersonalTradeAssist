@@ -9,7 +9,7 @@ from threading import Lock
 COINGECKO_API_BASE = "https://api.coingecko.com/api/v3"
 # Delay between CoinGecko API calls (seconds) - crucial for free tier
 # CoinGecko free tier limit is roughly 10-30 calls/minute. Be conservative.
-COINGECKO_DELAY = 6.0 # Increased delay to avoid rate limiting
+COINGECKO_DELAY = 10.0 # Increased delay to avoid rate limiting
 # How often to refresh the coin list cache (seconds)
 LIST_CACHE_REFRESH_INTERVAL = 6 * 60 * 60 # 6 hours for coin LIST cache
 # Cache duration for individual coin details (seconds)
@@ -209,13 +209,14 @@ def fetch_coingecko_metrics(symbol):
     except requests.exceptions.HTTPError as e:
         # Handle specific HTTP errors like 429 Rate Limit
         if e.response is not None and e.response.status_code == 429:
-             log.error(f"[CoinGecko Proxy] RATE LIMITED (429) for {symbol} (slug: {coin_id}). Increase COINGECKO_DELAY or reduce call frequency. Error: {e}")
+            backoff_time = 60
+            log.error(f"[CoinGecko Proxy] RATE LIMITED (429) for {symbol} (slug: {coin_id}). Increase COINGECKO_DELAY or reduce call frequency. Error: {e}")
              # Consider adding a longer dynamic delay or circuit breaker here
         elif e.response is not None and e.response.status_code == 404:
-             log.warning(f"[CoinGecko Proxy] Coin not found (404) for slug: {coin_id} (Symbol: {symbol}). Maybe slug list is slightly stale? Error: {e}")
+            log.warning(f"[CoinGecko Proxy] Coin not found (404) for slug: {coin_id} (Symbol: {symbol}). Error: {e}")
         else:
-             log.error(f"[CoinGecko Proxy] HTTP error for {symbol} (slug: {coin_id}): {e}")
-        return {} # Return empty dict on handled HTTP errors
+            log.error(f"[CoinGecko Proxy] HTTP error for {symbol} (slug: {coin_id}): {e}")
+        return {} # Return empty dict on handled HTTP errorsdict on handled HTTP errors
     except requests.exceptions.RequestException as e:
         # Handle other network/request related errors
         log.error(f"[CoinGecko Proxy] Request error for {symbol} (slug: {coin_id}): {e}")
