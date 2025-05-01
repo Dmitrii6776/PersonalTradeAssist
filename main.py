@@ -311,16 +311,26 @@ def update_data():
                 cg_developer_score = cg_metrics.get('cg_developer_score')
                 cg_public_interest_score = cg_metrics.get('cg_public_interest_score')
 
+
+                SPREAD_THRESHOLD = 1.5 # Example threshold
+                ALLOWED_VOLATILITY_ZONES = ["Very Low Volatility", "Low Volatility", "Medium Volatility"]
+
                 # --- Initial Filtering (Example: Apply basic filters early) ---
-                if spread_percent is not None and spread_percent > 1.5:
-                    logging.info(f"[{coin_symbol}] Skipping due to high spread: {spread_percent:.4f}%")
-                    skipped_coins['high_spread'] += 1
-                    continue
+                if spread_percent is None or spread_percent > SPREAD_THRESHOLD:
+                    logging.info(f"[{coin_symbol}] Skipping further analysis due to high/missing spread: {spread_percent}")
+                    skipped_coins['high_spread_early'] += 1
+                    continue 
+
+                if zone not in ALLOWED_VOLATILITY_ZONES:
+                     logging.info(f"[{coin_symbol}] Skipping further analysis due to volatility zone: {zone}")
+                     skipped_coins['wrong_volatility_early'] += 1
+                     continue
                 # Example: Filter based on volatility zone if desired earlier
                 # if zone not in ["Very Low Volatility", "Low Volatility"]:
                 #     logging.info(f"[{coin_symbol}] Skipping due to volatility zone: {zone}")
                 #     skipped_coins['wrong_volatility'] += 1
                 #     continue
+                logging.info(f"[{coin_symbol}] Passed initial filters (Spread: {spread_percent:.4f}%, Zone: {zone}). Proceeding with deeper analysis.")
 
                 # --- Social & News Metrics ---
                 # Note: Uses CoinGecko proxy, NOT real Santiment
